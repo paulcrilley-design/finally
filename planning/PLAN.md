@@ -69,6 +69,18 @@ The user runs a single Docker command (or a provided start script). A browser op
 - **AI integration**: LiteLLM → OpenRouter (Cerebras for fast inference), with structured outputs for trade execution
 - **Market data**: Environment-variable driven — simulator by default, real data via Massive API if key provided
 
+### Multi-User Readiness (Design Constraint)
+
+The product is single-user today, but the architecture must scale to multiple users without schema or API rewrites:
+
+- **Every user-owned table keeps `user_id`** (see Section 7). Nothing in the schema assumes one user.
+- **Identity is resolved in one place**: a single backend dependency (e.g. `get_current_user() -> str`) returns `"default"` today. Every route and service receives `user_id` from it; no code path hardcodes `"default"` outside that function and the seed data. Adding auth later means changing only this function.
+- **Data-access functions always take `user_id`** as an explicit parameter and filter every query by it.
+- **Market data is global, not per-user**: one price cache, one poller. The set of tickers to poll is the union of all users' watchlists and positions.
+- **SSE price stream is shared** (all known tickers); per-user filtering happens client-side from that user's watchlist. Per-user events (if ever needed) are a separate stream.
+- **Background tasks iterate over users** (e.g. portfolio snapshots loop over all user profiles) rather than assuming one.
+- **SQLite is acceptable for now**; the data layer is isolated behind `backend/db/` so a move to Postgres only touches that module.
+
 ### Why These Choices
 
 | Decision | Rationale |
@@ -193,7 +205,7 @@ The backend checks for the SQLite database on startup (or first request). If the
 
 ### Schema
 
-All tables include a `user_id` column defaulting to `"default"`. This is hardcoded for now (single-user) but enables future multi-user support without schema migration.
+All user-owned tables include a `user_id` column defaulting to `"default"`. Only one user exists today, but the column is **deliberately kept** so multi-user support needs no schema migration (see "Multi-User Readiness" in Section 3). Add indexes on `user_id` (and `(user_id, recorded_at)` / `(user_id, created_at)` for snapshots and chat) so per-user queries stay fast as users grow. `users_profile` remains a real table, one row per user.
 
 **users_profile** — User state (cash balance)
 - `id` TEXT PRIMARY KEY (default: `"default"`)
@@ -318,14 +330,46 @@ The LLM is instructed to respond with JSON matching this schema:
 - `trades` (optional): Array of trades to auto-execute. Each trade goes through the same validation as manual trades (sufficient cash for buys, sufficient shares for sells)
 - `watchlist_changes` (optional): Array of watchlist modifications
 
+### Second-Opinion Review (Checks and Balances)
+
+Trades and watchlist changes proposed by the primary LLM are **not executed directly**. A second, independent LLM call acts as a reviewer, so no single model output can move money on its own.
+
+Flow:
+
+1. **Proposer** (primary LLM, as above) returns `message`, `trades`, `watchlist_changes`.
+2. **Deterministic validation** (code, no LLM): ticker known, quantity > 0, sufficient cash / shares. Failures are rejected immediately with a reason.
+3. **Reviewer** (second LLM call, same model family is fine but a fresh context and a different system prompt) receives the portfolio context, the user's message, and the surviving proposed actions. It returns a structured verdict per action.
+4. **Execute** only actions that passed steps 2 and 3, through the same trade/watchlist service used by the REST endpoints.
+5. **Report**: the final chat response lists executed actions and any rejected ones with reasons.
+
+Reviewer structured output:
+
+```json
+{
+  "reviews": [
+    {"action_index": 0, "type": "trade", "verdict": "approve", "reason": "Matches the user's explicit request; within cash."},
+    {"action_index": 1, "type": "trade", "verdict": "reject", "reason": "Would put 80% of portfolio in one ticker; user did not ask for this."}
+  ],
+  "summary": "Optional note appended to the assistant message"
+}
+```
+
+Reviewer rules:
+- It can only **approve or reject** proposed actions. It cannot add, modify or resize them.
+- It checks: the action is consistent with what the user actually asked for or agreed to (guards against the proposer inventing trades), the sizing is not wildly out of proportion to the portfolio, and there is no concentration or obvious-error risk (wrong ticker, wrong side, quantity typo such as 1000 instead of 10).
+- If the proposer returns no actions, the reviewer call is skipped (no extra latency or cost for pure conversation).
+- **Fail closed**: if the reviewer call times out, errors, or returns malformed output, no trades execute and the user is told the review failed. Watchlist-only changes may be set to fail open (low risk) — decide during implementation.
+- Both verdicts and reasons are stored in `chat_messages.actions` for auditability.
+- In `LLM_MOCK=true` mode the reviewer is also mocked deterministically (approve all by default; a trigger phrase can force a rejection for E2E tests).
+
 ### Auto-Execution
 
-Trades specified by the LLM execute automatically — no confirmation dialog. This is a deliberate design choice:
+Trades specified by the LLM execute automatically once they pass validation and the reviewer — no user confirmation dialog. This is a deliberate design choice:
 - It's a simulated environment with fake money, so the stakes are zero
 - It creates an impressive, fluid demo experience
 - It demonstrates agentic AI capabilities — the core theme of the course
 
-If a trade fails validation (e.g., insufficient cash), the error is included in the chat response so the LLM can inform the user.
+If a trade fails validation or is rejected by the reviewer (e.g., insufficient cash), the reason is included in the chat response. The backend appends rejection reasons to the assistant message; no third LLM call is needed.
 
 ### System Prompt Guidance
 
@@ -487,10 +531,10 @@ The container is designed to deploy to AWS App Runner, Render, or any container 
 
 ### Simplification opportunities
 
-1. **Drop `user_id` columns** on every table (YAGNI). A later migration is cheap. Alternatively keep it only on `users_profile`.
-2. **Replace `users_profile`** with a single-row cash setting, unless multi-user stays on the roadmap.
+1. ~~**Drop `user_id` columns**~~ **Rejected**: multi-user scalability is a requirement. `user_id` is kept and the design constraint is documented in Section 3.
+2. ~~**Replace `users_profile`**~~ **Rejected** for the same reason; `users_profile` stays one row per user.
 3. **One snapshot mechanism**: The 30s background task plus after-trade writes is two mechanisms. Consider a single timer, or snapshot only on trades plus a slower timer.
-4. **Skip the second LLM pass**: Append trade errors to the message server-side.
+4. ~~**Skip the second LLM pass**~~ **Rejected**: a second LLM now acts as reviewer for checks and balances (Section 9). Rejection reasons are still appended server-side, so no third call is needed.
 5. **Remove `docker-compose.yml` and the Terraform stretch goal** from the core plan. One Dockerfile and the scripts are enough.
 6. **Lighter E2E setup**: Run Playwright on the host against the single container instead of a second compose service.
 7. **Pick one charting library**: Lightweight Charts for price and P&L lines. The treemap needs Recharts or custom SVG, so decide now.
