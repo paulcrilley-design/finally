@@ -4,7 +4,7 @@
 
 ## 1. Vision
 
-FinAlly (Finance Ally) is a visually stunning AI-powered trading workstation that streams live market data, lets users trade a simulated portfolio, and integrates an LLM chat assistant that can analyze positions and execute trades on the user's behalf. It looks and feels like a modern Bloomberg terminal with an AI copilot.
+FinAlly (Finance Ally) is a visually stunning AI-powered trading workstation that streams live market data, lets users trade a simulated portfolio, and integrates an LLM chat assistant that can analyze positions and execute trades on the user's behalf. It is a data-dense, modern trading terminal with an AI copilot, styled in the openUI house style (see Section 2 and `planning/OUI_FORMAT.md`).
 
 This is the capstone project for an agentic AI coding course. It is built entirely by Coding Agents demonstrating how orchestrated AI agents can produce a production-quality full-stack application. Agents interact through files in `planning/`.
 
@@ -16,12 +16,12 @@ The user runs a single Docker command (or a provided start script). A browser op
 
 - A watchlist of 10 default tickers with live-updating prices in a grid
 - $10,000 in virtual cash
-- A dark, data-rich trading terminal aesthetic
+- A clean, data-dense trading terminal in the openUI style (light surfaces, teal/navy/orange palette)
 - An AI chat panel ready to assist
 
 ### What the User Can Do
 
-- **Watch prices stream** — prices flash green (uptick) or red (downtick) with subtle CSS animations that fade
+- **Watch prices stream** — prices flash teal (uptick) or orange (downtick), with an up/down arrow, using subtle CSS animations that fade
 - **View sparkline mini-charts** — price action beside each ticker in the watchlist, accumulated on the frontend from the SSE stream since page load (sparklines fill in progressively)
 - **Click a ticker** to see a larger detailed chart in the main chart area
 - **Buy and sell shares** — market orders only, instant fill at current price, no fees, no confirmation dialog
@@ -32,16 +32,32 @@ The user runs a single Docker command (or a provided start script). A browser op
 
 ### Visual Design
 
-- **Dark theme**: backgrounds around `#0d1117` or `#1a1a2e`, muted gray borders, no pure black
-- **Price flash animations**: brief green/red background highlight on price change, fading over ~500ms via CSS transitions
-- **Connection status indicator**: a small colored dot (green = connected, yellow = reconnecting, red = disconnected) visible in the header
-- **Professional, data-dense layout**: inspired by Bloomberg/trading terminals — every pixel earns its place
-- **Responsive but desktop-first**: optimized for wide screens, functional on tablet
+**All visual design follows the openUI format standard in `planning/OUI_FORMAT.md`.** It is the single source of truth for logo, colours, typography, components and layout; do not invent a separate palette. Where this plan and `OUI_FORMAT.md` disagree on visuals, `OUI_FORMAT.md` wins. The project foundation files already in the repo are:
 
-### Color Scheme
-- Accent Yellow: `#ecad0a`
-- Blue Primary: `#209dd7`
-- Purple Secondary: `#753991` (submit buttons)
+| What | File |
+|---|---|
+| Design tokens and Tailwind utilities | `frontend/src/app/globals.css` |
+| Shared components (Button, Panel, Eyebrow, TextField, Spinner, `cn`, `HEADING`, `SUBHEADING`) | `frontend/src/components/ui.tsx` |
+| Logo component (use this, never a raw `<img>`) | `frontend/src/components/Logo.tsx` |
+| Logo and favicon | `frontend/src/assets/openui-logo.png`, `frontend/src/app/icon.png` |
+
+Fonts (Space Grotesk for headings, Manrope for body) are self-hosted via the Fontsource packages `@fontsource-variable/space-grotesk` and `@fontsource-variable/manrope`, imported in `layout.tsx`. Never load fonts from Google Fonts or a CDN.
+
+Product-specific application of the standard:
+
+- **Light theme**: page background `--surface` (`#f6f8f7`), content in white panels with the standard stroke and shadow. No dark theme and no pure black.
+- **Header**: openUI logo (140 px) plus the product name "FinAlly" in the display font on the left; portfolio total value, cash balance and the connection indicator on the right. Header, content and footer share a max width of 1500 px with 24 px gutters.
+- **Price flash animations**: on a price change, a brief background tint fading over ~500ms via CSS transitions. Uptick = teal-ink tint with an up arrow (▲); downtick = orange tint with a down arrow (▼). Direction is always shown by arrow and sign as well as colour.
+- **P&L colouring** (positions table, heatmap, daily change %): profit = teal-ink text/fill with a `+` sign; loss = orange-ink with a `−` sign. Per openUI, never use red or green, and orange (non-ink) is never used for text.
+- **Connection status indicator**: a small dot plus a text label: teal-ink = connected, orange = reconnecting, orange-ink = disconnected. Colour is never the only signal.
+- **Charts**: series colours in the openUI order (teal-ink `#315f62`, orange `#d57e39`, navy `#263c3d`, orange-ink `#8f4a1b`, gray `#666666`); gridlines and axes `#e2e9e9`; labels gray.
+- **Chat bubbles**: user = teal-ink with white text; assistant = surface with navy text. Trade and watchlist confirmations use the standard alert styling.
+- **Buttons**: pill buttons from `ui.tsx`. Primary (teal-ink) for Buy and Send; Danger variant for Sell and Remove.
+- **Data-dense layout**: dense tables and compact panels are fine, but the 4 px spacing grid, AA contrast, visible focus rings and phone-width usability from `OUI_FORMAT.md` still apply.
+- **Responsive but desktop-first**: optimized for wide screens, functional on tablet.
+- **Page title** is "FinAlly | Trading Workstation" style (two to four words).
+
+---
 
 ## 3. Architecture Overview
 
@@ -404,11 +420,11 @@ When `LLM_MOCK=true`, the backend returns deterministic mock responses instead o
 
 ### Layout
 
-The frontend is a single-page application with a dense, terminal-inspired layout. The specific component architecture and layout system is up to the Frontend Engineer, but the UI should include these elements:
+The frontend is a single-page application with a dense, terminal-style layout in the openUI style. The specific component architecture and layout system is up to the Frontend Engineer, but the UI should include these elements:
 
-- **Watchlist panel** — grid/table of watched tickers with: ticker symbol, current price (flashing green/red on change), daily change %, and a sparkline mini-chart (accumulated from SSE since page load)
+- **Watchlist panel** — grid/table of watched tickers with: ticker symbol, current price (flashing teal/orange with ▲/▼ on change), daily change %, and a sparkline mini-chart (accumulated from SSE since page load)
 - **Main chart area** — larger chart for the currently selected ticker, with at minimum price over time. Clicking a ticker in the watchlist selects it here.
-- **Portfolio heatmap** — treemap visualization where each rectangle is a position, sized by portfolio weight, colored by P&L (green = profit, red = loss)
+- **Portfolio heatmap** — treemap visualization where each rectangle is a position, sized by portfolio weight, colored by P&L (teal-ink = profit, orange-ink = loss, with +/− signs; see Section 2)
 - **P&L chart** — line chart showing total portfolio value over time, using data from `portfolio_snapshots`
 - **Positions table** — tabular view of all positions: ticker, quantity, avg cost, current price, unrealized P&L, % change
 - **Trade bar** — simple input area: ticker field, quantity field, buy button, sell button. Market orders, instant fill.
@@ -421,7 +437,9 @@ The frontend is a single-page application with a dense, terminal-inspired layout
 - Use **Recharts** as the single charting library for everything: price chart, sparklines, P&L line chart and the portfolio treemap. One dependency, no second library; at ~10 tickers SVG rendering performance is fine
 - Price flash effect: on receiving a new price, briefly apply a CSS class with background color transition, then remove it
 - All API calls go to the same origin (`/api/*`) — no CORS configuration needed
-- Tailwind CSS for styling with a custom dark theme
+- Tailwind CSS v4 for styling, using the openUI tokens in `frontend/src/app/globals.css` and the components in `frontend/src/components/ui.tsx` (no raw hex values; no separate theme)
+- Frontend scaffolding (`create-next-app` or equivalent) must **preserve** the existing files under `frontend/src/` (`app/globals.css`, `app/icon.png`, `assets/openui-logo.png`, `components/Logo.tsx`, `components/ui.tsx`)
+- Header and footer components (`SiteHeader`, `SiteFooter`) are built for FinAlly following `OUI_FORMAT.md` Section 4; the Prelegal versions are not reused (they depend on Prelegal auth)
 
 ---
 
@@ -537,7 +555,7 @@ Out of scope for the core build. The container is a standard single-port image a
 - State float vs Decimal for money. REAL columns can drift; that is acceptable for a simulation, but say so.
 - Specify start-script behavior when port 8000 is busy and whether the browser opens automatically.
 - Note how the Cerebras provider is pinned for `openrouter/openai/gpt-oss-120b` (via the cerebras-inference skill).
-- Accessibility: red/green is the only P&L signal on the heatmap and flashes. Consider an arrow or +/- sign for colorblind users.
+- Accessibility: ~~red/green is the only P&L signal~~ **Addressed**: openUI palette (teal-ink / orange-ink) plus ▲/▼ arrows and +/− signs; see Section 2.
 
 ### Simplification opportunities
 

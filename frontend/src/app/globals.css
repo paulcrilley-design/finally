@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+/*
+ * openUI design tokens: the same variables, names and values as the pm app
+ * (pm/frontend/src/app/globals.css), so both can share one website and,
+ * later, one stylesheet. Colours come from the openUI logo.
+ */
+:root {
+  --brand-teal: #4c7f82; /* focus borders, accents */
+  --brand-teal-ink: #315f62; /* primary buttons, links, eyebrows */
+  --brand-orange: #d57e39; /* decorative accents: active tab, bars (never text) */
+  --brand-orange-ink: #8f4a1b; /* errors and destructive actions */
+  --gray-text: #666666; /* secondary text */
+  --navy-dark: #263c3d; /* headings and body text */
+  --surface: #f6f8f7; /* page background, soft fills */
+  --surface-strong: #ffffff;
+  --stroke: rgba(49, 95, 98, 0.14); /* borders */
+  --shadow: 0 18px 40px rgba(49, 95, 98, 0.12); /* panels */
+}
+
+/* The tokens as Tailwind utilities: bg-brand-teal-ink, text-navy-dark, border-stroke, font-display… */
+@theme inline {
+  --color-brand-teal: var(--brand-teal);
+  --color-brand-teal-ink: var(--brand-teal-ink);
+  --color-brand-orange: var(--brand-orange);
+  --color-brand-orange-ink: var(--brand-orange-ink);
+  --color-gray-text: var(--gray-text);
+  --color-navy-dark: var(--navy-dark);
+  --color-surface: var(--surface);
+  --color-stroke: var(--stroke);
+  --shadow-panel: var(--shadow);
+  /* Self-hosted (Fontsource, imported in layout.tsx): the build needs no network. */
+  --font-sans: "Manrope Variable", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Space Grotesk Variable", "Segoe UI", system-ui, sans-serif;
+}
+
+/* No page background here (pm sets one): the site pages paint their own, and
+   /embed stays transparent so it blends into the website hosting it. */
+body {
+  color: var(--navy-dark);
+  font-family: var(--font-sans);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
