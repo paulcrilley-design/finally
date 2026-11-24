@@ -454,3 +454,50 @@ The container is designed to deploy to AWS App Runner, Render, or any container 
 - Portfolio visualization: heatmap renders with correct colors, P&L chart has data points
 - AI chat (mocked): send a message, receive a response, trade execution appears inline
 - SSE resilience: disconnect and verify reconnection
+
+---
+
+## 13. Review: Questions, Clarifications & Simplifications
+
+*Added by doc-review. Feedback for the plan owner; nothing above has been changed.*
+
+### Questions / ambiguities
+
+1. **Trade validation rules**: Is a ticker missing from the price cache rejected? Can the user trade a ticker that is not on the watchlist? Are minimum sizes and fractional precision defined? Does a sell to exactly 0 delete the position row?
+2. **Watchlist removal with an open position**: Does removing the ticker stop it streaming? The positions table and P&L still need its price. Define "tickers known to the system" as the union of watchlist and positions.
+3. **Adding arbitrary tickers**: The simulator needs seed prices and parameters for unknown tickers (e.g. PYPL in the chat example). What price does a new ticker start at? With Massive, how is an invalid ticker detected?
+4. **"Daily change %"**: The cache holds only latest and previous price. What is the baseline: session open, previous close (Massive), or the first simulator price?
+5. **Error response shape**: Define a standard error JSON for 4xx responses on trade and watchlist routes. The chat flow needs it to report failed trades.
+6. **Chat failure handling**: What happens on a malformed LLM response, a timeout, or a missing `OPENROUTER_API_KEY`? Is there a retry? How many history messages are sent?
+7. **Trade failure semantics in chat**: Does one failed trade abort the rest, or does each execute independently? Does the LLM get a second pass to explain failures, or does the backend append the errors? (Section 9 says "so the LLM can inform the user", which implies a second call.)
+8. **Portfolio snapshots**: The 30s task writes forever, so the table grows unbounded. Add a retention or downsampling rule, and say whether `/api/portfolio/history` is capped.
+9. **Massive and closed markets**: Prices will not change when markets are closed, and the free tier allows 5 calls/min. Confirm the polling design stays within that rate.
+10. **Docker / .env**: The plan says the backend reads `.env` from the project root, but the container only gets it via `--env-file`. Pick one. Also clarify named volume vs bind mount (`finally-data` vs `./db`).
+11. **Static serving**: API routes must be registered before the static mount. Confirm the frontend is a single page with no client-side routing.
+12. **Testing**: Which frontend test runner (Jest or Vitest)? Is Playwright E2E required for the first milestone?
+
+### Clarifications to add to the spec
+
+- Define the JSON contract for the SSE event and for `/api/portfolio` and `/api/watchlist` responses. Frontend and backend agents need it as a shared contract.
+- State the rounding rule for prices (e.g. 2 decimals) and the cash check (e.g. `cost <= cash`).
+- State float vs Decimal for money. REAL columns can drift; that is acceptable for a simulation, but say so.
+- Specify start-script behavior when port 8000 is busy and whether the browser opens automatically.
+- Note how the Cerebras provider is pinned for `openrouter/openai/gpt-oss-120b` (via the cerebras-inference skill).
+- Accessibility: red/green is the only P&L signal on the heatmap and flashes. Consider an arrow or +/- sign for colorblind users.
+
+### Simplification opportunities
+
+1. **Drop `user_id` columns** on every table (YAGNI). A later migration is cheap. Alternatively keep it only on `users_profile`.
+2. **Replace `users_profile`** with a single-row cash setting, unless multi-user stays on the roadmap.
+3. **One snapshot mechanism**: The 30s background task plus after-trade writes is two mechanisms. Consider a single timer, or snapshot only on trades plus a slower timer.
+4. **Skip the second LLM pass**: Append trade errors to the message server-side.
+5. **Remove `docker-compose.yml` and the Terraform stretch goal** from the core plan. One Dockerfile and the scripts are enough.
+6. **Lighter E2E setup**: Run Playwright on the host against the single container instead of a second compose service.
+7. **Pick one charting library**: Lightweight Charts for price and P&L lines. The treemap needs Recharts or custom SVG, so decide now.
+8. **Keep SSE simple**: Send all tickers every ~500ms. With about 10 tickers, diffing is not worth it.
+9. **Defer Windows `.ps1` scripts** if the course is macOS-first.
+10. **Initialize the DB at startup** (FastAPI lifespan) rather than "startup or first request", which removes a code path.
+
+### Suggested build order
+
+Backend core (DB, portfolio, watchlist, API contracts) → SSE wiring → LLM chat with mock mode → frontend → Docker and scripts → E2E.
