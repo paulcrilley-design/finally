@@ -106,14 +106,11 @@ finally/
 │   └── ...                   # Additional agent reference docs
 ├── scripts/
 │   ├── start_mac.sh          # Launch Docker container (macOS/Linux)
-│   ├── stop_mac.sh           # Stop Docker container (macOS/Linux)
-│   ├── start_windows.ps1     # Launch Docker container (Windows PowerShell)
-│   └── stop_windows.ps1      # Stop Docker container (Windows PowerShell)
-├── test/                     # Playwright E2E tests + docker-compose.test.yml
+│   └── stop_mac.sh           # Stop Docker container (macOS/Linux)
+├── test/                     # Playwright E2E tests (run on the host against the container)
 ├── db/                       # Volume mount target (SQLite file lives here at runtime)
 │   └── .gitkeep              # Directory exists in repo; finally.db is gitignored
 ├── Dockerfile                # Multi-stage build (Node → Python)
-├── docker-compose.yml        # Optional convenience wrapper
 ├── .env                      # Environment variables (gitignored, .env.example committed)
 └── .gitignore
 ```
@@ -125,7 +122,7 @@ finally/
 - **`backend/db/`** contains schema SQL definitions and seed logic. The backend lazily initializes the database on first request — creating tables and seeding default data if the SQLite file doesn't exist or is empty.
 - **`db/`** at the top level is the runtime volume mount point. The SQLite file (`db/finally.db`) is created here by the backend and persists across container restarts via Docker volume.
 - **`planning/`** contains project-wide documentation, including this plan. All agents reference files here as the shared contract.
-- **`test/`** contains Playwright E2E tests and supporting infrastructure (e.g., `docker-compose.test.yml`). Unit tests live within `frontend/` and `backend/` respectively, following each framework's conventions.
+- **`test/`** contains Playwright E2E tests, which run on the host against the single app container. Unit tests live within `frontend/` and `backend/` respectively, following each framework's conventions.
 - **`scripts/`** contains start/stop scripts that wrap Docker commands.
 
 ---
@@ -362,6 +359,19 @@ Reviewer rules:
 - Both verdicts and reasons are stored in `chat_messages.actions` for auditability.
 - In `LLM_MOCK=true` mode the reviewer is also mocked deterministically (approve all by default; a trigger phrase can force a rejection for E2E tests).
 
+### Token & Integration Budget
+
+Keep LLM cost and latency low and the integration surface minimal:
+
+- **Only essential external services**: OpenRouter (LLM, routed to Cerebras) is the only required third party. Massive is opt-in via `MASSIVE_API_KEY`. No analytics, auth providers, hosted databases, or font/CDN dependencies; all assets are bundled in the image.
+- **History cap**: send at most the last 10 messages (5 exchanges) from `chat_messages` to the proposer. Older messages stay in the database but are not sent.
+- **Compact context**: portfolio context is a terse JSON/table (cash, total value, and per position: ticker, qty, avg cost, price, P&L %; watchlist as `ticker:price`). No verbose prose, no sparkline or history data.
+- **Stable prompt prefix**: put the static system prompt and schema instructions first and the dynamic portfolio data and user message last, so provider-side prompt caching can apply where available.
+- **Proposer limits**: set `max_tokens` (e.g. 800) and low reasoning effort on `gpt-oss-120b`. Instruct it to keep `message` to a few sentences.
+- **Reviewer gets minimum context**: only the user's latest message, the proposed actions, and cash plus positions. No conversation history and no watchlist. Set a small `max_tokens` (e.g. 300), low reasoning effort, and one-sentence reasons.
+- **Skip calls when pointless**: no reviewer call when there are no actions; deterministic validation runs first so obviously invalid actions never reach the reviewer.
+- **Mock mode** makes zero network calls.
+
 ### Auto-Execution
 
 Trades specified by the LLM execute automatically once they pass validation and the reviewer — no user confirmation dialog. This is a deliberate design choice:
@@ -408,7 +418,7 @@ The frontend is a single-page application with a dense, terminal-inspired layout
 ### Technical Notes
 
 - Use `EventSource` for SSE connection to `/api/stream/prices`
-- Canvas-based charting library preferred (Lightweight Charts or Recharts) for performance
+- Use **Recharts** as the single charting library for everything: price chart, sparklines, P&L line chart and the portfolio treemap. One dependency, no second library; at ~10 tickers SVG rendering performance is fine
 - Price flash effect: on receiving a new price, briefly apply a CSS class with background color transition, then remove it
 - All API calls go to the same origin (`/api/*`) — no CORS configuration needed
 - Tailwind CSS for styling with a custom dark theme
@@ -457,13 +467,13 @@ The `db/` directory in the project root maps to `/app/db` in the container. The 
 - Stops and removes the running container
 - Does NOT remove the volume (data persists)
 
-**`scripts/start_windows.ps1`** / **`scripts/stop_windows.ps1`**: PowerShell equivalents for Windows.
+Windows users can run the equivalent `docker` commands shown above directly (or via WSL); no PowerShell scripts are provided in the core build.
 
 All scripts should be idempotent — safe to run multiple times.
 
-### Optional Cloud Deployment
+### Cloud Deployment
 
-The container is designed to deploy to AWS App Runner, Render, or any container platform. A Terraform configuration for App Runner may be provided in a `deploy/` directory as a stretch goal, but is not part of the core build.
+Out of scope for the core build. The container is a standard single-port image and can be run on any container platform, but no cloud-specific tooling (Terraform, App Runner config) is part of this project.
 
 ---
 
@@ -486,7 +496,7 @@ The container is designed to deploy to AWS App Runner, Render, or any container 
 
 ### E2E Tests (in `test/`)
 
-**Infrastructure**: A separate `docker-compose.test.yml` in `test/` that spins up the app container plus a Playwright container. This keeps browser dependencies out of the production image.
+**Infrastructure**: Playwright is installed in `test/` and runs on the host against the single app container (started with the normal start script and `LLM_MOCK=true`). No second container or compose file; browser dependencies stay out of the production image.
 
 **Environment**: Tests run with `LLM_MOCK=true` by default for speed and determinism.
 
@@ -535,11 +545,11 @@ The container is designed to deploy to AWS App Runner, Render, or any container 
 2. ~~**Replace `users_profile`**~~ **Rejected** for the same reason; `users_profile` stays one row per user.
 3. **One snapshot mechanism**: The 30s background task plus after-trade writes is two mechanisms. Consider a single timer, or snapshot only on trades plus a slower timer.
 4. ~~**Skip the second LLM pass**~~ **Rejected**: a second LLM now acts as reviewer for checks and balances (Section 9). Rejection reasons are still appended server-side, so no third call is needed.
-5. **Remove `docker-compose.yml` and the Terraform stretch goal** from the core plan. One Dockerfile and the scripts are enough.
-6. **Lighter E2E setup**: Run Playwright on the host against the single container instead of a second compose service.
-7. **Pick one charting library**: Lightweight Charts for price and P&L lines. The treemap needs Recharts or custom SVG, so decide now.
+5. ~~**Remove `docker-compose.yml` and the Terraform stretch goal**~~ **Applied.**
+6. ~~**Lighter E2E setup**~~ **Applied**: Playwright runs on the host.
+7. ~~**Pick one charting library**~~ **Applied**: Recharts for all charts and the treemap.
 8. **Keep SSE simple**: Send all tickers every ~500ms. With about 10 tickers, diffing is not worth it.
-9. **Defer Windows `.ps1` scripts** if the course is macOS-first.
+9. ~~**Defer Windows `.ps1` scripts**~~ **Applied.**
 10. **Initialize the DB at startup** (FastAPI lifespan) rather than "startup or first request", which removes a code path.
 
 ### Suggested build order
