@@ -24,7 +24,13 @@ def _env_float(name: str, default: float) -> float:
 
 def _env_seed() -> int | None:
     raw = os.environ.get("SIM_SEED", "").strip()
-    return int(raw) if raw.lstrip("-").isdigit() else None
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        logger.warning("Ignoring non-integer SIM_SEED=%r", raw)
+        return None
 
 
 def create_market_data_source(price_cache: PriceCache) -> MarketDataSource:

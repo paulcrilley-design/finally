@@ -28,7 +28,6 @@ def create_stream_router(price_cache: PriceCache) -> APIRouter:
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
                 "X-Accel-Buffering": "no",
             },
         )
@@ -71,3 +70,4 @@ async def _generate_events(
             idle += interval
     except asyncio.CancelledError:
         logger.info("SSE stream cancelled for: %s", client)
+        raise

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import math
 import random
@@ -123,7 +124,12 @@ class GBMSimulator:
             return SEED_PRICES[ticker]
         if ticker in KNOWN_PRICES:
             return KNOWN_PRICES[ticker]
-        return round(self._rng.uniform(*UNKNOWN_PRICE_RANGE), 2)
+        # Deterministic per symbol (not RNG-based) so the price is the same after a
+        # restart or re-add; persisted positions keep a meaningful cost basis.
+        digest = hashlib.sha256(ticker.encode()).digest()
+        frac = int.from_bytes(digest[:8], "big") / 2**64
+        low, high = UNKNOWN_PRICE_RANGE
+        return round(low + frac * (high - low), 2)
 
     def _add_ticker_internal(self, ticker: str) -> None:
         if ticker in self._prices:
@@ -202,6 +208,8 @@ class SimulatorDataSource(MarketDataSource):
         }
 
     async def start(self, tickers: list[str]) -> None:
+        if self._task is not None and not self._task.done():
+            raise RuntimeError("SimulatorDataSource already started")
         names = list(dict.fromkeys(normalize_ticker(t) for t in tickers))
         self._sim = GBMSimulator(names, event_probability=self._event_prob, seed=self._seed)
         for ticker in names:  # seed the cache so SSE and trades have prices at once

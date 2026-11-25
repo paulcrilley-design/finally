@@ -15,7 +15,7 @@ fingerprint() {
   {
     git diff HEAD -- . "${EXCLUDES[@]}"
     git ls-files --others --exclude-standard -z -- . "${EXCLUDES[@]}" |
-      xargs -0 -I{} sh -c 'echo "== {}"; cat "{}"' 2>/dev/null
+      xargs -0 -n1 sh -c 'echo "== $1"; cat "$1"' _ 2>/dev/null
   } | shasum -a 256 | cut -d' ' -f1
 }
 

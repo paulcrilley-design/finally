@@ -102,11 +102,11 @@ def classify_error(exc: BaseException) -> ErrorKind:
             return ErrorKind.FORBIDDEN
         if "maximum requests" in low or "rate limit" in low or "too many requests" in low:
             return ErrorKind.RATE_LIMIT
-        if "unknown api key" in low or "invalid api key" in low or "api key" in low:
+        if any(s in low for s in ("unknown api key", "invalid api key", "missing api key")):
             return ErrorKind.AUTH
         if "not_found" in low or "not found" in low:
             return ErrorKind.NOT_FOUND
         return ErrorKind.OTHER
-    if "429" in low:
+    if "too many 429" in low or "429 error" in low:  # urllib3 MaxRetryError wording
         return ErrorKind.RATE_LIMIT
     return ErrorKind.NETWORK
