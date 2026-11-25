@@ -45,3 +45,16 @@ INTRA_TECH_CORR = 0.6  # Tech stocks move together
 INTRA_FINANCE_CORR = 0.5  # Finance stocks move together
 CROSS_GROUP_CORR = 0.3  # Between sectors / unknown tickers
 TSLA_CORR = 0.3  # TSLA does its own thing
+
+# Approximate prices for other popular tickers, so a user adding PYPL or AMD gets a
+# believable start instead of a random one. Tickers not listed here start at a random
+# price in UNKNOWN_PRICE_RANGE. Volatility and drift fall back to DEFAULT_PARAMS.
+KNOWN_PRICES: dict[str, float] = {
+    "AMD": 160.00, "INTC": 30.00, "ORCL": 170.00, "CRM": 300.00, "ADBE": 520.00,
+    "PYPL": 65.00, "SQ": 70.00, "SHOP": 80.00, "UBER": 75.00, "ABNB": 140.00,
+    "DIS": 110.00, "NKE": 95.00, "KO": 62.00, "PEP": 170.00, "MCD": 290.00,
+    "WMT": 170.00, "COST": 800.00, "HD": 380.00, "BA": 190.00, "CAT": 340.00,
+    "GS": 450.00, "MS": 100.00, "BAC": 38.00, "WFC": 58.00, "MA": 470.00,
+    "JNJ": 155.00, "PFE": 28.00, "UNH": 520.00, "XOM": 115.00, "CVX": 155.00,
+}  # fmt: skip
+UNKNOWN_PRICE_RANGE: tuple[float, float] = (50.0, 300.0)

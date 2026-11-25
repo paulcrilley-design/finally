@@ -17,10 +17,10 @@ from app.market import PriceCache, PriceUpdate, MarketDataSource, create_market_
 
 ### Core Types
 
-- **`PriceUpdate`** — Immutable dataclass: `ticker`, `price`, `previous_price`, `timestamp`, plus properties `change`, `change_percent`, `direction` ("up"/"down"/"flat"), and `to_dict()` for JSON serialization.
+- **`PriceUpdate`** — Immutable dataclass: `ticker`, `price`, `previous_price`, `timestamp`, `prev_close` (daily-change baseline, may be `None`), plus properties `change`, `change_percent`, `direction` ("up"/"down"/"flat"), `day_change`, `day_change_percent` (`None` if no baseline), and `to_dict()` for JSON serialization.
 
 - **`PriceCache`** — Thread-safe in-memory store. Key methods:
-  - `update(ticker, price, timestamp=None) -> PriceUpdate`
+  - `update(ticker, price, timestamp=None, prev_close=None) -> PriceUpdate` (`prev_close` is sticky)
   - `get(ticker) -> PriceUpdate | None`
   - `get_price(ticker) -> float | None`
   - `get_all() -> dict[str, PriceUpdate]`
@@ -29,7 +29,11 @@ from app.market import PriceCache, PriceUpdate, MarketDataSource, create_market_
 
 - **`MarketDataSource`** — Abstract interface implemented by `SimulatorDataSource` and `MassiveDataSource`. Lifecycle: `start(tickers)` -> `add_ticker()` / `remove_ticker()` -> `stop()`.
 
-- **`create_market_data_source(cache)`** — Factory. Returns `MassiveDataSource` if `MASSIVE_API_KEY` is set, otherwise `SimulatorDataSource`.
+- **`create_market_data_source(cache)`** — Factory. Returns `MassiveDataSource` if `MASSIVE_API_KEY` is set (and `MARKET_FORCE_SIMULATOR` is not true), otherwise `SimulatorDataSource`.
+- **`await start_market_data(cache, tickers)`** — Create and start a source; falls back to a `degraded` simulator if Massive rejects the key. Use this in the app lifespan.
+- **`await reconcile_tickers(source, wanted)`** — Idempotently sync the source with the union of all watchlists and open positions. Call after any watchlist or trade change.
+- Sources also expose `mode` (`simulator`, `massive-snapshot`, `massive-eod`), `status()` (for `/api/health`) and `await validate_ticker(t)`.
+- Optional env: `MASSIVE_MODE` (auto/snapshot/eod), `MASSIVE_POLL_INTERVAL`, `MARKET_FORCE_SIMULATOR`, `SIM_SEED`. Full design: `planning/MARKET_DATA_DESIGN.md`.
 
 ### SSE Streaming
 
