@@ -1,6 +1,6 @@
 # Market Data Backend — Summary
 
-**Status (2026-11-26):** The simulator, price cache and SSE stream are ready to build on. **The Massive (real data) path is not working yet**: leave `MASSIVE_API_KEY` empty. Open items are listed in `MARKET_DATA_REVIEW.md`.
+**Status (2026-11-26):** The simulator, price cache and SSE stream are ready to build on. **The Massive (real data) path is not ready** (open defects, never run against the live service): leave `MASSIVE_API_KEY` empty. Open items are listed in `MARKET_DATA_REVIEW.md`.
 
 ## What Was Built
 
@@ -46,7 +46,7 @@ MarketDataSource (ABC)
 
 ## Test Suite
 
-**136 tests, all passing.** Coverage (statements and branches): **94%**.
+**137 tests, all passing.** Coverage (statements and branches): **94%**.
 
 | Test file | Tests |
 |---|---|
@@ -56,7 +56,7 @@ MarketDataSource (ABC)
 | `test_factory.py` | 7 |
 | `test_interface.py` | 2 |
 | `test_massive_parse.py` | 24 |
-| `test_massive_source.py` | 9 |
+| `test_massive_source.py` | 10 |
 | `test_models.py` | 11 |
 | `test_review_fixes.py` | 17 |
 | `test_simulator.py` | 19 |

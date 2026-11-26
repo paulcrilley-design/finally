@@ -2,7 +2,7 @@
 
 Implementation-ready design for the FinAlly market data subsystem: the unified Python API, the GBM simulator, and the Massive (formerly Polygon.io) client, plus the SSE endpoint and the FastAPI wiring around them.
 
-**Status of this document (2026-11-26).** The design is implemented. The source listings in Sections 3 to 10 are copied from `backend/app/market/`; if they ever differ, the repository wins. The simulator path is ready. **The Massive path has known, unfixed defects, including a wrong snapshot URL: read Section 14.1 before using a Massive key.**
+**Status of this document (2026-11-26).** The design is implemented. The source listings in Sections 3 to 10 are copied from `backend/app/market/`; if they ever differ, the repository wins. The simulator path is ready. **The Massive path has known, unfixed defects and has not been run against the live service: read Section 14.1 before using a Massive key.**
 
 It builds on, and supersedes where they differ, `MASSIVE_API.md` in this folder and the earlier drafts in `archive/` (`MARKET_INTERFACE_V2.md`, `MARKET_SIMULATOR_V2.md`, `MARKET_DATA_DESIGN.md`). Differences are called out in Section 1.2.
 
@@ -749,13 +749,14 @@ Which plan the key belongs to decides which endpoints work (details and sources 
 
 ### 7.2 Verified SDK facts (installed `massive` package)
 
-These were checked against the installed SDK source and drive the code (request paths were not checked: see Section 14.1). Items still needing a live key are in Section 14.
+These were checked against the installed SDK source and drive the code. Items still needing a live key are in Section 14.
 
 - `RESTClient(api_key, connect_timeout=10.0, read_timeout=10.0, num_pools=10, retries=3, base="https://api.massive.com", pagination=True, ...)`. Raises `AuthError` only when `api_key is None`.
 - `get_snapshot_all(market_type, tickers=None, include_otc=False)` returns `list[TickerSnapshot]`. `get_snapshot_ticker(market_type, ticker)` returns one `TickerSnapshot`. `get_grouped_daily_aggs(date, adjusted=None, locale="us", market_type="stocks", include_otc=False)` returns `list[GroupedDailyAgg]`.
 - `TickerSnapshot` fields: `day`, `last_quote`, `last_trade`, `min`, `prev_day`, `ticker`, `todays_change`, `todays_change_percent`, `updated`, `fair_market_value`. `day` and `prev_day` are `Agg` (`open high low close volume vwap timestamp ...`); `min` is `MinuteSnapshot` (`close`, `timestamp`, ...); `last_trade` is `LastTrade` (`price`, `size`, `sip_timestamp`, `participant_timestamp`, `trf_timestamp`, ...).
 - `GroupedDailyAgg` fields: `ticker open high low close volume vwap timestamp transactions otc`.
 - Every non-200 raises `BadResponse(response_body_text)`. The status code is not available, so errors are classified from the body.
+- Snapshot methods need the market type as a string (`SnapshotMarketType.STOCKS.value`). Passing the enum member builds a wrong URL; a test pins the real request URLs.
 - Timeouts are stored but not applied; retries include 429 (see Section 1.2, items 5 and 6).
 
 ### 7.3 `massive_parse.py`: pure helpers
@@ -1112,7 +1113,7 @@ class MassiveDataSource(MarketDataSource):
             self._last_validate = time.monotonic()
             try:
                 snap = await self._call(
-                    self._client.get_snapshot_ticker, SnapshotMarketType.STOCKS, ticker
+                    self._client.get_snapshot_ticker, SnapshotMarketType.STOCKS.value, ticker
                 )
             except MassiveCallError as err:
                 if err.kind is ErrorKind.NOT_FOUND:
@@ -1165,7 +1166,9 @@ class MassiveDataSource(MarketDataSource):
         tickers = list(self._tickers)
         if not tickers:
             return 0
-        snaps = await self._call(self._client.get_snapshot_all, SnapshotMarketType.STOCKS, tickers)
+        snaps = await self._call(
+            self._client.get_snapshot_all, SnapshotMarketType.STOCKS.value, tickers
+        )
         written = 0
         for snap in snaps:
             ticker = (getattr(snap, "ticker", None) or "").upper()
@@ -1755,7 +1758,6 @@ Details and suggested fixes are in `MARKET_DATA_REVIEW.md`. None affects the sim
 
 | Review finding | Defect |
 |---|---|
-| 1 (critical) | Snapshot calls pass the `SnapshotMarketType` enum, so the SDK builds a wrong URL. Pass `.value` |
 | 3 | With no tickers the startup probe is skipped, so a free or bad key is never detected |
 | 6 | The request deadline abandons threads, which can stop the process exiting |
 | 7 | End-of-day mode gives up if the newest weekday is refused |

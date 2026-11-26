@@ -35,7 +35,7 @@ LLM_MOCK=false                # true = deterministic mock LLM (testing, no netwo
 | Component | State |
 |---|---|
 | Market data: simulator, price cache, SSE | Complete — see `planning/MARKET_DATA_SUMMARY.md` |
-| Market data: Massive (real prices) | Not working yet — known defects, so leave `MASSIVE_API_KEY` empty |
+| Market data: Massive (real prices) | Not ready — open defects and untested against the live service, so leave `MASSIVE_API_KEY` empty |
 | Portfolio, watchlist, chat APIs | Planned |
 | Frontend | Design foundation only (`frontend/src/`) |
 | Docker and start/stop scripts | Planned |

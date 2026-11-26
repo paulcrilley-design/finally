@@ -179,7 +179,7 @@ client = RESTClient(api_key=os.environ["MASSIVE_API_KEY"])
 
 ```python
 snaps = client.get_snapshot_all(
-    market_type=SnapshotMarketType.STOCKS,
+    market_type=SnapshotMarketType.STOCKS.value,  # the string: the enum member builds a wrong URL
     tickers=["AAPL", "MSFT", "NVDA"],
 )
 for s in snaps:

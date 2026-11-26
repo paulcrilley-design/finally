@@ -13,13 +13,15 @@ Sections 1 to 6 describe the code **as reviewed** at `40164bc`; line numbers and
 
 **Scope agreed:** keep the simulator fallback, since no Massive key is available yet; fix everything except the Massive issues.
 
-**Result:** 136 tests pass (also on Python 3.12, with 20 sequential and 8 concurrent runs, and with `-W error`), coverage 94%, `ruff check` and `ruff format --check` clean, README setup commands verified in a clean copy, demo runs.
+**Update:** finding 1 was fixed afterwards on the same branch, with a test of the real request URLs. 137 tests now pass.
 
-**The simulator-only backend is ready. The Massive path is still broken: leave `MASSIVE_API_KEY` empty.**
+**Result of the first round:** 136 tests pass (also on Python 3.12, with 20 sequential and 8 concurrent runs, and with `-W error`), coverage 94%, `ruff check` and `ruff format --check` clean, README setup commands verified in a clean copy, demo runs.
+
+**The simulator-only backend is ready. The Massive path still has open defects and is untested against the live service: leave `MASSIVE_API_KEY` empty.**
 
 | Finding | Status |
 |---|---|
-| 1. Wrong snapshot URL | **Open** (Massive) |
+| 1. Wrong snapshot URL | **Fixed**: both calls pass `SnapshotMarketType.STOCKS.value`; `test_snapshot_requests_use_the_real_sdk_urls` stubs only the HTTP layer |
 | 2. SSE blocks shutdown | **Handled**: required `--timeout-graceful-shutdown` recorded in `PLAN.md`, the design and developer guide, and tested over real uvicorn. The flag still has to be added when `main.py`, the Dockerfile and scripts are written |
 | 3. Empty list skips the probe | **Open** (Massive) |
 | 4. Runtime fallback | **Decided**: keep moving in a simulator. Design updated to match. Code unchanged, so it still starts from seed prices and prices jump at the switch (**open**, Massive) |
@@ -36,7 +38,8 @@ Sections 1 to 6 describe the code **as reviewed** at `40164bc`; line numbers and
 | Tests that asserted nothing or injected no error | **Fixed** (the two simulator source tests; also the interval test) |
 | Fixed sleeps | **Fixed** where a test waits for simulator ticks. Massive tests unchanged |
 | No HTTP test of the SSE route | **Fixed**: `test_stream_http.py` |
-| Permissive Massive mock, weak backoff assertion, missing Massive cases | **Open** (Massive) |
+| Permissive Massive mock | **Partly fixed**: request URLs are now tested through the real SDK; other tests still use the fake client |
+| Weak backoff assertion, missing Massive cases | **Open** (Massive) |
 
 | Documentation item (section 5) | Status |
 |---|---|
@@ -44,11 +47,11 @@ Sections 1 to 6 describe the code **as reviewed** at `40164bc`; line numbers and
 | `TEST_PLAN.md` description | **Fixed** in the root README; the template itself is left for later |
 | Design listings out of date | **Fixed**: source listings synced, test listings replaced with a file table, known defects listed in section 14.1 |
 | Superseded drafts | **Archived** as `archive/MARKET_INTERFACE_V2.md` and `archive/MARKET_SIMULATOR_V2.md` |
-| Finding 1 call in the design and `MASSIVE_API.md` examples | **Open** (Massive); flagged in the design |
+| Finding 1 call in the design and `MASSIVE_API.md` examples | **Fixed** |
 
 The notes for downstream work in section 4 are now in `backend/CLAUDE.md`, except the price reset on restart, which remains a design open item.
 
-**Before using a Massive key:** fix findings 1, 3, 4 (seeding) and 6 to 10, then run a live smoke test.
+**Before using a Massive key:** fix findings 3, 4 (seeding) and 6 to 10, then run a live smoke test.
 
 ---
 

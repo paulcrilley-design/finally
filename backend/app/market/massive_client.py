@@ -198,7 +198,7 @@ class MassiveDataSource(MarketDataSource):
             self._last_validate = time.monotonic()
             try:
                 snap = await self._call(
-                    self._client.get_snapshot_ticker, SnapshotMarketType.STOCKS, ticker
+                    self._client.get_snapshot_ticker, SnapshotMarketType.STOCKS.value, ticker
                 )
             except MassiveCallError as err:
                 if err.kind is ErrorKind.NOT_FOUND:
@@ -251,7 +251,9 @@ class MassiveDataSource(MarketDataSource):
         tickers = list(self._tickers)
         if not tickers:
             return 0
-        snaps = await self._call(self._client.get_snapshot_all, SnapshotMarketType.STOCKS, tickers)
+        snaps = await self._call(
+            self._client.get_snapshot_all, SnapshotMarketType.STOCKS.value, tickers
+        )
         written = 0
         for snap in snaps:
             ticker = (getattr(snap, "ticker", None) or "").upper()
