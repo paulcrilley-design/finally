@@ -23,6 +23,12 @@ from app.market.cache import PriceCache
 from app.market.seed_prices import SEED_PRICES
 from app.market.simulator import SimulatorDataSource
 
+# openUI palette (planning/OUI_FORMAT.md): teal for up, orange for down, never red or
+# green. Direction is also shown by an arrow and a sign. The brighter teal and orange
+# are used because the "ink" shades are hard to read on a dark terminal.
+UP_COLOR = "#4c7f82"
+DOWN_COLOR = "#d57e39"
+
 # Sparkline characters, low to high
 SPARK_CHARS = "▁▂▃▄▅▆▇█"
 
@@ -80,11 +86,11 @@ def build_table(
 
         # Direction styling
         if update.direction == "up":
-            color = "green"
-            arrow = "[bold green]\u25b2[/]"
+            color = UP_COLOR
+            arrow = f"[bold {UP_COLOR}]\u25b2[/]"
         elif update.direction == "down":
-            color = "red"
-            arrow = "[bold red]\u25bc[/]"
+            color = DOWN_COLOR
+            arrow = f"[bold {DOWN_COLOR}]\u25bc[/]"
         else:
             color = "bright_black"
             arrow = "[bright_black]\u2500[/]"
@@ -187,9 +193,9 @@ def print_summary(cache: PriceCache) -> None:
         session_change = ((final - seed) / seed) * 100 if seed else 0
 
         if session_change > 0:
-            color = "green"
+            color = UP_COLOR
         elif session_change < 0:
-            color = "red"
+            color = DOWN_COLOR
         else:
             color = "bright_black"
 
@@ -249,7 +255,7 @@ async def run() -> None:
                     # Log notable moves
                     if abs(update.change_percent) > 1.0:
                         direction = "\u25b2" if update.direction == "up" else "\u25bc"
-                        color = "green" if update.direction == "up" else "red"
+                        color = UP_COLOR if update.direction == "up" else DOWN_COLOR
                         timestamp = time.strftime("%H:%M:%S")
                         events.appendleft(
                             f"[bright_black]{timestamp}[/]  "

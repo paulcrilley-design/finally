@@ -27,10 +27,13 @@ def _env_seed() -> int | None:
     if not raw:
         return None
     try:
-        return int(raw)
+        seed = int(raw)
     except ValueError:
-        logger.warning("Ignoring non-integer SIM_SEED=%r", raw)
+        seed = -1
+    if seed < 0:  # numpy rejects negative seeds
+        logger.warning("Ignoring SIM_SEED=%r (must be a non-negative integer)", raw)
         return None
+    return seed
 
 
 def create_market_data_source(price_cache: PriceCache) -> MarketDataSource:
@@ -39,7 +42,7 @@ def create_market_data_source(price_cache: PriceCache) -> MarketDataSource:
     MASSIVE_API_KEY set and non-empty, and MARKET_FORCE_SIMULATOR not true
         -> MassiveDataSource    (MASSIVE_MODE=auto|snapshot|eod, MASSIVE_POLL_INTERVAL=15)
     otherwise
-        -> SimulatorDataSource  (SIM_SEED=<int> for a reproducible series)
+        -> SimulatorDataSource  (SIM_SEED=<int >= 0> for a reproducible series)
     """
     api_key = os.environ.get("MASSIVE_API_KEY", "").strip()
     force_sim = os.environ.get("MARKET_FORCE_SIMULATOR", "").strip().lower() in ("1", "true", "yes")

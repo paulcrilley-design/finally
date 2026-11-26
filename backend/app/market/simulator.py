@@ -11,7 +11,7 @@ import random
 import numpy as np
 
 from .cache import PriceCache
-from .interface import MarketDataSource, is_valid_symbol, normalize_ticker
+from .interface import MarketDataSource, clean_tickers, is_valid_symbol, normalize_ticker
 from .seed_prices import (
     CORRELATION_GROUPS,
     CROSS_GROUP_CORR,
@@ -210,7 +210,7 @@ class SimulatorDataSource(MarketDataSource):
     async def start(self, tickers: list[str]) -> None:
         if self._task is not None and not self._task.done():
             raise RuntimeError("SimulatorDataSource already started")
-        names = list(dict.fromkeys(normalize_ticker(t) for t in tickers))
+        names = clean_tickers(tickers)
         self._sim = GBMSimulator(names, event_probability=self._event_prob, seed=self._seed)
         for ticker in names:  # seed the cache so SSE and trades have prices at once
             self._write(ticker, self._sim.get_price(ticker))

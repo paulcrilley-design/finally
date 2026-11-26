@@ -46,6 +46,13 @@ async def test_start_populates_cache(source):
     assert source.cache.get_price("AAPL") and source.cache.get_price("MSFT")
 
 
+async def test_start_normalises_and_drops_invalid_symbols(source, caplog):
+    await source.start([" aapl ", "AAPL", "", "bad symbol!", "msft"])
+    assert source.get_tickers() == ["AAPL", "MSFT"]
+    assert set(source.cache.get_all()) == {"AAPL", "MSFT"}
+    assert "BAD SYMBOL!" in caplog.text
+
+
 async def test_add_remove_are_idempotent_and_normalised(source):
     await source.start(["AAPL"])
     await source.add_ticker(" nvda ")

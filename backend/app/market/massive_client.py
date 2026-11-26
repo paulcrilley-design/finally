@@ -18,6 +18,7 @@ from .interface import (
     MarketDataError,
     MarketDataSource,
     MarketDataUnavailableError,
+    clean_tickers,
     is_valid_symbol,
     normalize_ticker,
 )
@@ -121,7 +122,7 @@ class MassiveDataSource(MarketDataSource):
     async def start(self, tickers: list[str]) -> None:
         if self._task is not None and not self._task.done():
             raise RuntimeError("MassiveDataSource already started")
-        self._tickers = list(dict.fromkeys(normalize_ticker(t) for t in tickers))
+        self._tickers = clean_tickers(tickers)
         self._client = self._client or make_client(self._api_key, self._timeout)
 
         first_delay = 0.0
@@ -197,7 +198,7 @@ class MassiveDataSource(MarketDataSource):
             self._last_validate = time.monotonic()
             try:
                 snap = await self._call(
-                    self._client.get_snapshot_ticker, SnapshotMarketType.STOCKS, ticker
+                    self._client.get_snapshot_ticker, SnapshotMarketType.STOCKS.value, ticker
                 )
             except MassiveCallError as err:
                 if err.kind is ErrorKind.NOT_FOUND:
@@ -250,7 +251,9 @@ class MassiveDataSource(MarketDataSource):
         tickers = list(self._tickers)
         if not tickers:
             return 0
-        snaps = await self._call(self._client.get_snapshot_all, SnapshotMarketType.STOCKS, tickers)
+        snaps = await self._call(
+            self._client.get_snapshot_all, SnapshotMarketType.STOCKS.value, tickers
+        )
         written = 0
         for snap in snaps:
             ticker = (getattr(snap, "ticker", None) or "").upper()

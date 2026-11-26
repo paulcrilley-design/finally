@@ -1,6 +1,5 @@
 """Tests for the design additions: prev_close, seeded simulator, SSE, factory fallback."""
 
-import asyncio
 import json
 import math
 
@@ -12,6 +11,8 @@ from app.market import PriceCache, create_market_data_source, start_market_data
 from app.market.massive_client import MassiveDataSource, make_client
 from app.market.simulator import GBMSimulator, SimulatorDataSource
 from app.market.stream import _generate_events
+
+from .helpers import wait_until
 
 
 class TestPrevClose:
@@ -48,6 +49,14 @@ class TestSimulator:
         assert corr[0, 1] == pytest.approx(0.6, abs=0.06)  # AAPL-MSFT
         assert corr[0, 2] == pytest.approx(0.3, abs=0.06)  # AAPL-JPM
 
+    def test_cholesky_failure_degrades_to_independent_moves(self, monkeypatch):
+        def fail(_):
+            raise np.linalg.LinAlgError
+
+        monkeypatch.setattr(np.linalg, "cholesky", fail)
+        sim = GBMSimulator(["AAPL", "MSFT"], seed=1)
+        assert sim._cholesky is None and len(sim.step()) == 2
+
     def test_known_and_unknown_start_prices(self):
         sim = GBMSimulator(["PYPL", "ZZZZ"], seed=5)
         assert sim.get_price("PYPL") == 65.0
@@ -64,7 +73,8 @@ class TestSimulator:
         src = SimulatorDataSource(cache, update_interval=0.01, seed=1)
         await src.start(["aapl"])
         await src.add_ticker("pypl ")
-        await asyncio.sleep(0.05)
+        version = cache.version
+        await wait_until(lambda: cache.version > version)
         await src.stop()
         assert cache.get("AAPL").prev_close == 190.0 and cache.get("PYPL").prev_close == 65.0
         assert src.get_tickers() == ["AAPL", "PYPL"] and src.mode == "simulator"

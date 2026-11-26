@@ -203,6 +203,7 @@ Both the simulator and the Massive client implement the same abstract interface.
 - Server pushes price updates for all tickers known to the system at a regular cadence (~500ms) — in the single-user model this is equivalent to the user's watchlist
 - Each SSE event contains ticker, price, previous price, timestamp, and change direction
 - Client handles reconnection automatically (EventSource has built-in retry)
+- Every event repeats all tickers, so the client flashes a price only when that ticker's `timestamp` changes
 
 ---
 
@@ -458,10 +459,12 @@ Stage 2: Python 3.12 slim
   - uv sync (install Python dependencies from lockfile)
   - Copy frontend build output into a static/ directory
   - Expose port 8000
-  - CMD: uvicorn serving FastAPI app
+  - CMD: uvicorn serving FastAPI app, with --timeout-graceful-shutdown 3
 ```
 
 FastAPI serves the static frontend files and all API routes on port 8000.
+
+The shutdown timeout is required: an open SSE connection never ends by itself, and without it uvicorn waits forever and skips the lifespan shutdown (see `MARKET_DATA_DESIGN.md` Section 10.4).
 
 ### Docker Volume
 
@@ -536,9 +539,9 @@ Out of scope for the core build. The container is a standard single-port image a
 ### Questions / ambiguities
 
 1. **Trade validation rules**: Is a ticker missing from the price cache rejected? Can the user trade a ticker that is not on the watchlist? Are minimum sizes and fractional precision defined? Does a sell to exactly 0 delete the position row?
-2. **Watchlist removal with an open position**: Does removing the ticker stop it streaming? The positions table and P&L still need its price. Define "tickers known to the system" as the union of watchlist and positions.
-3. **Adding arbitrary tickers**: The simulator needs seed prices and parameters for unknown tickers (e.g. PYPL in the chat example). What price does a new ticker start at? With Massive, how is an invalid ticker detected?
-4. **"Daily change %"**: The cache holds only latest and previous price. What is the baseline: session open, previous close (Massive), or the first simulator price?
+2. ~~**Watchlist removal with an open position**~~ **Decided**: the tracked tickers are the union of every user's watchlist and open positions, applied with `reconcile_tickers` (`MARKET_DATA_DESIGN.md` Sections 1.3 and 10.1).
+3. ~~**Adding arbitrary tickers**~~ **Decided**: the simulator accepts any well-formed symbol, starting at a known price or a stable one derived from the symbol; Massive validates against the real market (`MARKET_DATA_DESIGN.md` Section 1.3).
+4. ~~**"Daily change %"**~~ **Decided**: the baseline is `prev_close` on each price: the previous close (Massive) or the price when the ticker joined the simulator.
 5. **Error response shape**: Define a standard error JSON for 4xx responses on trade and watchlist routes. The chat flow needs it to report failed trades.
 6. **Chat failure handling**: What happens on a malformed LLM response, a timeout, or a missing `OPENROUTER_API_KEY`? Is there a retry? How many history messages are sent?
 7. **Trade failure semantics in chat**: Does one failed trade abort the rest, or does each execute independently? Does the LLM get a second pass to explain failures, or does the backend append the errors? (Section 9 says "so the LLM can inform the user", which implies a second call.)

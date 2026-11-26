@@ -1,13 +1,15 @@
 """MassiveDataSource tests against a fake SDK client that returns real SDK models."""
 
 import asyncio
+import json
+from types import SimpleNamespace
 
 import pytest
 from massive.exceptions import AuthError, BadResponse
 from massive.rest.models import GroupedDailyAgg, TickerSnapshot
 
 from app.market import MarketDataError, MarketDataUnavailableError, PriceCache, reconcile_tickers
-from app.market.massive_client import MassiveDataSource
+from app.market.massive_client import MassiveDataSource, make_client
 
 FORBIDDEN = BadResponse('{"status":"NOT_AUTHORIZED","message":"Your plan doesn\'t include this"}')
 RATE = BadResponse('{"status":"ERROR","error":"You\'ve exceeded the maximum requests per minute"}')
@@ -185,3 +187,29 @@ async def test_reconcile_tickers_adds_and_removes():
         assert sorted(src.get_tickers()) == ["AAPL", "NVDA"]
     finally:
         await src.stop()
+
+
+async def test_snapshot_requests_use_the_real_sdk_urls():
+    """Real RESTClient with only the HTTP layer stubbed: FakeClient accepts any
+    market_type, so it cannot catch an argument the SDK turns into a wrong path."""
+    urls = []
+    quote = {"ticker": "AAPL", "lastTrade": {"p": 190.5}}
+
+    def request(method, url, **kwargs):
+        urls.append((url, kwargs.get("fields", {}).get("tickers")))
+        body = {"ticker": quote} if url.endswith("/AAPL") else {"tickers": [quote]}
+        return SimpleNamespace(status=200, data=json.dumps(body).encode())
+
+    client = make_client("k", 1.0)
+    client.client.request = request
+    cache, src = make(client)
+    await src.start(["AAPL", "MSFT"])
+    try:
+        assert await src.validate_ticker("AAPL") is True
+    finally:
+        await src.stop()
+
+    base = "https://api.massive.com/v2/snapshot/locale/us/markets/stocks/tickers"
+    assert urls[0] == (base, "AAPL,MSFT")
+    assert (f"{base}/AAPL", None) in urls
+    assert cache.get_price("AAPL") == 190.5
