@@ -35,6 +35,14 @@ from app.market import PriceCache, PriceUpdate, MarketDataSource, create_market_
 - Sources also expose `mode` (`simulator`, `massive-snapshot`, `massive-eod`), `status()` (for `/api/health`) and `await validate_ticker(t)`.
 - Optional env: `MASSIVE_MODE` (auto/snapshot/eod), `MASSIVE_POLL_INTERVAL`, `MARKET_FORCE_SIMULATOR`, `SIM_SEED`. Full design: `planning/MARKET_DATA_DESIGN.md`.
 
+### Rules for callers
+
+- `PriceCache` does not normalise symbols: call `normalize_ticker()` before `get()` / `get_price()`.
+- A price of `None` means unknown: reject the trade, never substitute a value.
+- Sources drop invalid symbols passed to `start()`.
+- Nothing loads `.env`; the app or Docker must provide environment variables.
+- The Massive path has known defects (`planning/MARKET_DATA_REVIEW.md`); develop with the simulator.
+
 ### SSE Streaming
 
 ```python
@@ -43,6 +51,9 @@ from app.market import create_stream_router
 router = create_stream_router(price_cache)  # Returns FastAPI APIRouter
 # Endpoint: GET /api/stream/prices (text/event-stream)
 ```
+
+- Start uvicorn with `--timeout-graceful-shutdown 3`, or an open stream blocks shutdown.
+- Every event repeats all tickers: flash a price only when its `timestamp` changes.
 
 ### Seed Data
 

@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 _TICKER_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")  # AAPL, BRK.B, RDS-A
 
@@ -27,6 +31,17 @@ def is_valid_symbol(ticker: str) -> bool:
     return bool(_TICKER_RE.match(ticker))
 
 
+def clean_tickers(tickers: Iterable[str]) -> list[str]:
+    """Normalise and de-duplicate, keeping order. Invalid symbols are dropped with a warning."""
+    names: list[str] = []
+    for ticker in dict.fromkeys(normalize_ticker(t) for t in tickers):
+        if is_valid_symbol(ticker):
+            names.append(ticker)
+        else:
+            logger.warning("Ignoring invalid ticker symbol %r", ticker)
+    return names
+
+
 class MarketDataSource(ABC):
     """Contract for market data providers.
 
@@ -44,7 +59,10 @@ class MarketDataSource(ABC):
 
     @abstractmethod
     async def start(self, tickers: list[str]) -> None:
-        """Begin producing price updates. Call exactly once."""
+        """Begin producing price updates. Call exactly once.
+
+        Implementations pass `tickers` through clean_tickers() first.
+        """
 
     @abstractmethod
     async def stop(self) -> None:

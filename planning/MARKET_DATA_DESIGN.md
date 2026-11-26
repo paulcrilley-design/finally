@@ -2,9 +2,9 @@
 
 Implementation-ready design for the FinAlly market data subsystem: the unified Python API, the GBM simulator, and the Massive (formerly Polygon.io) client, plus the SSE endpoint and the FastAPI wiring around them.
 
-**Status of this document.** Every code block below is tested. The code was prototyped against a copy of `backend/` and passes 112 tests (the 60 existing non-Massive tests plus 52 new ones, listed in Section 12), and the FastAPI wiring in Section 10 was smoke-tested end to end with `uvicorn` and `curl`. Where the existing code is already correct the block is shown unchanged, so each file can be copied over as a whole.
+**Status of this document (2026-11-26).** The design is implemented. The source listings in Sections 3 to 10 are copied from `backend/app/market/`; if they ever differ, the repository wins. The simulator path is ready. **The Massive path has known, unfixed defects, including a wrong snapshot URL: read Section 14.1 before using a Massive key.**
 
-It builds on, and supersedes where they differ, `MARKET_INTERFACE.md`, `MARKET_SIMULATOR.md` and `MASSIVE_API.md` in this folder, and the earlier design in `archive/MARKET_DATA_DESIGN.md`. Differences are called out in Section 1.2.
+It builds on, and supersedes where they differ, `MASSIVE_API.md` in this folder and the earlier drafts in `archive/` (`MARKET_INTERFACE_V2.md`, `MARKET_SIMULATOR_V2.md`, `MARKET_DATA_DESIGN.md`). Differences are called out in Section 1.2.
 
 ---
 
@@ -76,9 +76,9 @@ The existing implementation (8 modules, 73 tests) is a good base: the interface,
 | Question | Decision |
 |---|---|
 | Q2: watchlist removal with an open position | The set of tracked tickers is the **union of every user's watchlist and every open position**. Callers never call `add_ticker`/`remove_ticker` directly; they call `reconcile_tickers(source, wanted)` after any change (Section 10.1). |
-| Q3: adding arbitrary tickers | Simulator: any `^[A-Z][A-Z0-9.\-]{0,9}$` symbol is accepted; it starts at a believable price from `KNOWN_PRICES` (about 30 popular names) or, failing that, a random price in $50 to $300. Massive: validated against the real market (single-ticker snapshot, or the cached whole-market daily bars in end-of-day mode). |
+| Q3: adding arbitrary tickers | Simulator: any `^[A-Z][A-Z0-9.\-]{0,9}$` symbol is accepted; it starts at a believable price from `KNOWN_PRICES` (about 30 popular names) or, failing that, a price in $50 to $300 derived from the symbol, so it is the same after a restart. Massive: validated against the real market (single-ticker snapshot, or the cached whole-market daily bars in end-of-day mode). |
 | Q4: baseline for "daily change %" | `prev_close` carried on every `PriceUpdate`. Massive: `prevDay.c` (snapshot mode) or the prior session's close (end-of-day mode). Simulator: the price when the ticker joined the simulation, so it starts at 0% and drifts. |
-| Q1 (price-cache part) | A missing price is `None` and a trade is rejected with HTTP 400. Nothing ever invents a price. |
+| Q1 (price-cache part) | A missing price is `None` and a trade is rejected with HTTP 400. Consumers never invent a price. The one source of non-market prices in Massive mode is the declared simulator fallback (Section 7.4), reported by `/api/health`. |
 | Trade/UI behaviour under slow feeds | The SSE rate follows the producer (500 ms simulator, 15 s Massive). The frontend must not assume a tick every 500 ms. |
 
 ### 1.4 Non-goals
@@ -315,9 +315,13 @@ The abstract methods are unchanged. Added, all with safe defaults so a custom su
 
 from __future__ import annotations
 
+import logging
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 _TICKER_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")  # AAPL, BRK.B, RDS-A
 
@@ -340,6 +344,17 @@ def is_valid_symbol(ticker: str) -> bool:
     return bool(_TICKER_RE.match(ticker))
 
 
+def clean_tickers(tickers: Iterable[str]) -> list[str]:
+    """Normalise and de-duplicate, keeping order. Invalid symbols are dropped with a warning."""
+    names: list[str] = []
+    for ticker in dict.fromkeys(normalize_ticker(t) for t in tickers):
+        if is_valid_symbol(ticker):
+            names.append(ticker)
+        else:
+            logger.warning("Ignoring invalid ticker symbol %r", ticker)
+    return names
+
+
 class MarketDataSource(ABC):
     """Contract for market data providers.
 
@@ -357,7 +372,10 @@ class MarketDataSource(ABC):
 
     @abstractmethod
     async def start(self, tickers: list[str]) -> None:
-        """Begin producing price updates. Call exactly once."""
+        """Begin producing price updates. Call exactly once.
+
+        Implementations pass `tickers` through clean_tickers() first.
+        """
 
     @abstractmethod
     async def stop(self) -> None:
@@ -403,12 +421,12 @@ class MarketDataSource(ABC):
 
 ### 6.1 Approach (recap)
 
-Each ticker follows geometric Brownian motion, `S' = S * exp((mu - sigma^2/2) dt + sigma sqrt(dt) Z)`, with `dt = 0.5 s / 5,896,800 s` (a trading year). Draws are correlated through the Cholesky factor of a sector correlation matrix (tech 0.6, finance 0.5, everything else 0.3), and each tick each ticker has a 0.1% chance of a 2 to 5% shock. The existing math is correct and kept as is. `MARKET_SIMULATOR.md` has the derivation. What changes:
+Each ticker follows geometric Brownian motion, `S' = S * exp((mu - sigma^2/2) dt + sigma sqrt(dt) Z)`, with `dt = 0.5 s / 5,896,800 s` (a trading year). Draws are correlated through the Cholesky factor of a sector correlation matrix (tech 0.6, finance 0.5, everything else 0.3), and each tick each ticker has a 0.1% chance of a 2 to 5% shock. The existing math is correct and kept as is. `archive/MARKET_SIMULATOR_V2.md` has the derivation. What changes:
 
 - **Reproducible runs.** `GBMSimulator(seed=...)` owns its RNGs (`numpy.random.Generator` and `random.Random`), so seeding never touches global state. `SIM_SEED=42` in the environment gives identical E2E runs.
-- **Believable new tickers.** `KNOWN_PRICES` covers about 30 popular symbols; anything else starts at a random $50 to $300 with default parameters.
+- **Believable new tickers.** `KNOWN_PRICES` covers about 30 popular symbols; anything else starts at a price in $50 to $300 derived from a hash of the symbol, with default parameters.
 - **Day baseline.** The price when a ticker joins the simulation is its `prev_close`, so the watchlist's daily change starts at 0%.
-- **Safety.** A `LinAlgError` from the Cholesky step degrades to independent moves instead of crashing; tickers are normalised at the boundary; a fallback instance can carry a `degraded_reason` for `/api/health`.
+- **Safety.** A `LinAlgError` from the Cholesky step degrades to independent moves instead of crashing; tickers are normalised and validated at the boundary (`clean_tickers` in `start()`); a fallback instance can carry a `degraded_reason` for `/api/health`.
 
 ### 6.2 `seed_prices.py` (append to the existing file)
 
@@ -437,6 +455,7 @@ UNKNOWN_PRICE_RANGE: tuple[float, float] = (50.0, 300.0)
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import math
 import random
@@ -444,7 +463,7 @@ import random
 import numpy as np
 
 from .cache import PriceCache
-from .interface import MarketDataSource, is_valid_symbol, normalize_ticker
+from .interface import MarketDataSource, clean_tickers, is_valid_symbol, normalize_ticker
 from .seed_prices import (
     CORRELATION_GROUPS,
     CROSS_GROUP_CORR,
@@ -557,7 +576,12 @@ class GBMSimulator:
             return SEED_PRICES[ticker]
         if ticker in KNOWN_PRICES:
             return KNOWN_PRICES[ticker]
-        return round(self._rng.uniform(*UNKNOWN_PRICE_RANGE), 2)
+        # Deterministic per symbol (not RNG-based) so the price is the same after a
+        # restart or re-add; persisted positions keep a meaningful cost basis.
+        digest = hashlib.sha256(ticker.encode()).digest()
+        frac = int.from_bytes(digest[:8], "big") / 2**64
+        low, high = UNKNOWN_PRICE_RANGE
+        return round(low + frac * (high - low), 2)
 
     def _add_ticker_internal(self, ticker: str) -> None:
         if ticker in self._prices:
@@ -636,7 +660,9 @@ class SimulatorDataSource(MarketDataSource):
         }
 
     async def start(self, tickers: list[str]) -> None:
-        names = list(dict.fromkeys(normalize_ticker(t) for t in tickers))
+        if self._task is not None and not self._task.done():
+            raise RuntimeError("SimulatorDataSource already started")
+        names = clean_tickers(tickers)
         self._sim = GBMSimulator(names, event_probability=self._event_prob, seed=self._seed)
         for ticker in names:  # seed the cache so SSE and trades have prices at once
             self._write(ticker, self._sim.get_price(ticker))
@@ -723,7 +749,7 @@ Which plan the key belongs to decides which endpoints work (details and sources 
 
 ### 7.2 Verified SDK facts (installed `massive` package)
 
-These were checked against the installed SDK source and drive the code. Items still needing a live key are in Section 14.
+These were checked against the installed SDK source and drive the code (request paths were not checked: see Section 14.1). Items still needing a live key are in Section 14.
 
 - `RESTClient(api_key, connect_timeout=10.0, read_timeout=10.0, num_pools=10, retries=3, base="https://api.massive.com", pagination=True, ...)`. Raises `AuthError` only when `api_key is None`.
 - `get_snapshot_all(market_type, tickers=None, include_otc=False)` returns `list[TickerSnapshot]`. `get_snapshot_ticker(market_type, ticker)` returns one `TickerSnapshot`. `get_grouped_daily_aggs(date, adjusted=None, locale="us", market_type="stocks", include_otc=False)` returns `list[GroupedDailyAgg]`.
@@ -845,12 +871,12 @@ def classify_error(exc: BaseException) -> ErrorKind:
             return ErrorKind.FORBIDDEN
         if "maximum requests" in low or "rate limit" in low or "too many requests" in low:
             return ErrorKind.RATE_LIMIT
-        if "unknown api key" in low or "invalid api key" in low or "api key" in low:
+        if any(s in low for s in ("unknown api key", "invalid api key", "missing api key")):
             return ErrorKind.AUTH
         if "not_found" in low or "not found" in low:
             return ErrorKind.NOT_FOUND
         return ErrorKind.OTHER
-    if "429" in low:
+    if "too many 429" in low or "429 error" in low:  # urllib3 MaxRetryError wording
         return ErrorKind.RATE_LIMIT
     return ErrorKind.NETWORK
 ```
@@ -877,7 +903,7 @@ Behaviour in one table:
 | `start()`, probe fails with network / 429 | stay in snapshot mode, keep retrying with backoff (the app is up, prices follow when the network does) |
 | 429 while running | interval doubles (cap 120 s), resets to base after the next success |
 | 403 while running (plan downgraded) | switch to end-of-day mode |
-| 401 while running | loop stops, `degraded: true`, stale prices stay |
+| 401 while running | polling stops and a simulator takes over the same cache so prices keep moving; `mode` becomes `simulator`, `degraded: true` (decided 2026-11-26) |
 | `add_ticker` (snapshot) | wakes the loop for an early poll, so the price appears in about 1 s, not up to 15 s |
 | `add_ticker` (eod) | instant: the whole market's closes are already in memory |
 | `remove_ticker` | evicts from the cache; an in-flight poll cannot resurrect it |
@@ -906,10 +932,12 @@ from .interface import (
     MarketDataError,
     MarketDataSource,
     MarketDataUnavailableError,
+    clean_tickers,
     is_valid_symbol,
     normalize_ticker,
 )
 from .massive_parse import ErrorKind, classify_error, extract_quote
+from .simulator import SimulatorDataSource
 
 logger = logging.getLogger(__name__)
 
@@ -953,6 +981,7 @@ class MassiveDataSource(MarketDataSource):
         eod_refresh: float = 3600.0,
         call_gap: float | None = None,  # min seconds between eod calls; None = FREE_TIER_CALL_GAP
         client: Any = None,  # injectable for tests
+        validate_gap: float = 0.5,  # min seconds between snapshot-mode validate calls
     ) -> None:
         if requested_mode not in ("auto", "snapshot", "eod"):
             raise ValueError(f"bad MASSIVE_MODE: {requested_mode!r}")
@@ -976,14 +1005,24 @@ class MassiveDataSource(MarketDataSource):
         self._last_success: float | None = None
         self._last_error: str | None = None
         self._degraded: str | None = None
+        self._eod_day: date | None = None  # session last logged, to warn once per session
+        self._validate_gap = validate_gap
+        self._validate_lock = asyncio.Lock()  # serialises validate calls
+        self._last_validate = 0.0
+        # Set when the key is rejected at runtime: a simulator takes over so prices keep moving.
+        self._fallback: SimulatorDataSource | None = None
 
     # --- MarketDataSource ---
 
     @property
     def mode(self) -> str:
+        if self._fallback:
+            return self._fallback.mode
         return f"massive-{self._mode}"
 
     def status(self) -> dict[str, Any]:
+        if self._fallback:
+            return self._fallback.status()
         return {
             "mode": self.mode,
             "degraded": self._degraded is not None,
@@ -995,7 +1034,9 @@ class MassiveDataSource(MarketDataSource):
         }
 
     async def start(self, tickers: list[str]) -> None:
-        self._tickers = list(dict.fromkeys(normalize_ticker(t) for t in tickers))
+        if self._task is not None and not self._task.done():
+            raise RuntimeError("MassiveDataSource already started")
+        self._tickers = clean_tickers(tickers)
         self._client = self._client or make_client(self._api_key, self._timeout)
 
         first_delay = 0.0
@@ -1025,9 +1066,13 @@ class MassiveDataSource(MarketDataSource):
             except asyncio.CancelledError:
                 pass
         self._task = None
+        if self._fallback:
+            await self._fallback.stop()
         logger.info("Massive source stopped")
 
     async def add_ticker(self, ticker: str) -> None:
+        if self._fallback:
+            return await self._fallback.add_ticker(ticker)
         ticker = normalize_ticker(ticker)
         if not is_valid_symbol(ticker) or ticker in self._tickers:
             return
@@ -1038,15 +1083,21 @@ class MassiveDataSource(MarketDataSource):
             self._wakeup.set()  # poll now instead of waiting up to a full interval
 
     async def remove_ticker(self, ticker: str) -> None:
+        if self._fallback:
+            return await self._fallback.remove_ticker(ticker)
         ticker = normalize_ticker(ticker)
         if ticker in self._tickers:
             self._tickers.remove(ticker)
         self._cache.remove(ticker)
 
     def get_tickers(self) -> list[str]:
+        if self._fallback:
+            return self._fallback.get_tickers()
         return list(self._tickers)
 
     async def validate_ticker(self, ticker: str) -> bool:
+        if self._fallback:
+            return await self._fallback.validate_ticker(ticker)
         ticker = normalize_ticker(ticker)
         if not is_valid_symbol(ticker):
             return False
@@ -1054,14 +1105,19 @@ class MassiveDataSource(MarketDataSource):
             if not self._eod_closes:
                 raise MarketDataError("End-of-day data is still loading; try again shortly")
             return ticker in self._eod_closes
-        try:
-            snap = await self._call(
-                self._client.get_snapshot_ticker, SnapshotMarketType.STOCKS, ticker
-            )
-        except MassiveCallError as err:
-            if err.kind is ErrorKind.NOT_FOUND:
-                return False
-            raise MarketDataError(f"Could not validate {ticker}: {err}") from err
+        async with self._validate_lock:  # one call at a time, spaced out, so adds cannot burst
+            wait = self._last_validate + self._validate_gap - time.monotonic()
+            if wait > 0:
+                await asyncio.sleep(wait)
+            self._last_validate = time.monotonic()
+            try:
+                snap = await self._call(
+                    self._client.get_snapshot_ticker, SnapshotMarketType.STOCKS, ticker
+                )
+            except MassiveCallError as err:
+                if err.kind is ErrorKind.NOT_FOUND:
+                    return False
+                raise MarketDataError(f"Could not validate {ticker}: {err}") from err
         return bool(snap) and getattr(snap, "ticker", None) == ticker
 
     # --- Background loop ---
@@ -1080,7 +1136,7 @@ class MassiveDataSource(MarketDataSource):
                 self._on_success()
             except MassiveCallError as err:
                 if err.kind is ErrorKind.AUTH:
-                    self._degrade(f"api key rejected: {err}")
+                    await self._fall_back(f"api key rejected: {err}")
                     return  # nothing will work until the key is fixed
                 if err.kind is ErrorKind.FORBIDDEN and self._mode == "snapshot":
                     self._switch_to_eod(err)
@@ -1128,26 +1184,41 @@ class MassiveDataSource(MarketDataSource):
 
     async def _refresh_eod(self) -> None:
         """Load the last two trading sessions (whole market) and publish tracked tickers."""
-        sessions: list[tuple[date, dict[str, float]]] = []
+        last_day: date | None = None
+        prev: dict[str, float] | None = None
         day = datetime.now(NEW_YORK).date()
         for _ in range(10):  # weekends are skipped for free; holidays cost one call each
             day -= timedelta(days=1)
             if day.weekday() >= 5:
                 continue
-            bars = await self._call(self._client.get_grouped_daily_aggs, day.isoformat(), True)
+            try:
+                bars = await self._call(self._client.get_grouped_daily_aggs, day.isoformat(), True)
+            except MassiveCallError:
+                if last_day is None:
+                    raise
+                logger.warning("Massive: could not load the prior session; no daily baseline")
+                break
             closes = {b.ticker: b.close for b in bars if b.ticker and b.close}
-            if closes:
-                sessions.append((day, closes))
-                if len(sessions) == 2:
-                    break
-        if not sessions:
+            if not closes:
+                continue
+            if last_day is None:
+                # Publish the latest closes at once; the slow (rate-limited) second call
+                # below only adds the previous-close baseline.
+                last_day, self._eod_closes = day, closes
+                self._eod_ts = datetime.combine(day, dtime(16, 0), tzinfo=NEW_YORK).timestamp()
+                self._apply_eod(self._tickers)
+            else:
+                prev = closes
+                break
+        if last_day is None:
             raise MassiveCallError(ErrorKind.OTHER, "no grouped daily bars in the last 10 days")
 
-        last_day, self._eod_closes = sessions[0]
-        self._eod_prev = sessions[1][1] if len(sessions) > 1 else {}
-        self._eod_ts = datetime.combine(last_day, dtime(16, 0), tzinfo=NEW_YORK).timestamp()
+        self._eod_prev = prev or {}
         self._apply_eod(self._tickers)
-        logger.warning(
+        level = logging.WARNING if last_day != self._eod_day else logging.DEBUG  # once per session
+        self._eod_day = last_day
+        logger.log(
+            level,
             "Massive end-of-day mode: prices are closes for %s and will not move intraday",
             last_day,
         )
@@ -1194,10 +1265,14 @@ class MassiveDataSource(MarketDataSource):
         else:
             logger.warning("Massive call failed (%s): %s", err.kind.value, err)
 
-    def _degrade(self, reason: str) -> None:
+    async def _fall_back(self, reason: str) -> None:
+        """The key stopped working: hand over to a simulator so prices keep moving."""
         self._degraded = reason
         self._last_error = reason
-        logger.error("Massive source degraded: %s", reason)
+        logger.error("Massive source degraded (%s); falling back to the simulator", reason)
+        tickers = list(self._tickers)
+        self._fallback = SimulatorDataSource(self._cache, degraded_reason=reason)
+        await self._fallback.start(tickers)
 
     def _switch_to_eod(self, err: MassiveCallError) -> None:
         logger.warning("Massive plan has no snapshot access (%s); using end-of-day data", err)
@@ -1263,7 +1338,16 @@ def _env_float(name: str, default: float) -> float:
 
 def _env_seed() -> int | None:
     raw = os.environ.get("SIM_SEED", "").strip()
-    return int(raw) if raw.lstrip("-").isdigit() else None
+    if not raw:
+        return None
+    try:
+        seed = int(raw)
+    except ValueError:
+        seed = -1
+    if seed < 0:  # numpy rejects negative seeds
+        logger.warning("Ignoring SIM_SEED=%r (must be a non-negative integer)", raw)
+        return None
+    return seed
 
 
 def create_market_data_source(price_cache: PriceCache) -> MarketDataSource:
@@ -1272,7 +1356,7 @@ def create_market_data_source(price_cache: PriceCache) -> MarketDataSource:
     MASSIVE_API_KEY set and non-empty, and MARKET_FORCE_SIMULATOR not true
         -> MassiveDataSource    (MASSIVE_MODE=auto|snapshot|eod, MASSIVE_POLL_INTERVAL=15)
     otherwise
-        -> SimulatorDataSource  (SIM_SEED=<int> for a reproducible series)
+        -> SimulatorDataSource  (SIM_SEED=<int >= 0> for a reproducible series)
     """
     api_key = os.environ.get("MASSIVE_API_KEY", "").strip()
     force_sim = os.environ.get("MARKET_FORCE_SIMULATOR", "").strip().lower() in ("1", "true", "yes")
@@ -1343,7 +1427,6 @@ def create_stream_router(price_cache: PriceCache) -> APIRouter:
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
                 "X-Accel-Buffering": "no",
             },
         )
@@ -1386,6 +1469,7 @@ async def _generate_events(
             idle += interval
     except asyncio.CancelledError:
         logger.info("SSE stream cancelled for: %s", client)
+        raise
 ```
 
 Wire format (each event is one line, wrapped here for reading):
@@ -1401,7 +1485,7 @@ data: {"AAPL": {"ticker": "AAPL", "price": 189.97, "previous_price": 189.99, "ti
 : keepalive
 ```
 
-Frontend notes: key the client state by `ticker`; a ticker absent from an event has been removed; render `day_change_percent === null` as "n/a"; compute flash direction from `direction`, not from colour alone (see `PLAN.md` section 2).
+Frontend notes: every event repeats all tickers, including ones that did not change (for example when another ticker is added or removed), so **flash a price only when that ticker's `timestamp` has changed**; key the client state by `ticker`; a ticker absent from an event has been removed; render `day_change_percent === null` as "n/a"; compute flash direction from `direction`, not from colour alone (see `PLAN.md` section 2).
 
 ```javascript
 const es = new EventSource("/api/stream/prices");
@@ -1424,9 +1508,11 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 
-from .interface import MarketDataSource, normalize_ticker
+from .interface import MarketDataSource, is_valid_symbol, normalize_ticker
 
 logger = logging.getLogger(__name__)
+
+_warned_invalid: set[str] = set()  # warn once per bad symbol, not on every reconcile
 
 
 async def reconcile_tickers(source: MarketDataSource, wanted: Iterable[str]) -> None:
@@ -1436,6 +1522,11 @@ async def reconcile_tickers(source: MarketDataSource, wanted: Iterable[str]) -> 
     reasoning about add/remove ordering.
     """
     want = {normalize_ticker(t) for t in wanted}
+    invalid = {t for t in want if not is_valid_symbol(t)}  # sources would silently ignore these
+    for ticker in sorted(invalid - _warned_invalid):
+        logger.warning("Ignoring invalid ticker symbol %r", ticker)
+    _warned_invalid.update(invalid)
+    want -= invalid
     have = set(source.get_tickers())
     for ticker in sorted(want - have):
         await source.add_ticker(ticker)
@@ -1567,6 +1658,16 @@ Remove a ticker: delete the row -> `reconcile_tickers`. If any user still holds 
 
 Trade: `cache.get_price(ticker)`; `None` -> HTTP 400 "No price available for X yet"; else execute at that price -> `reconcile_tickers` (a full sell may free the ticker).
 
+### 10.4 Server shutdown
+
+An SSE response stays open until the client disconnects, and uvicorn waits for open responses before it runs lifespan shutdown. With a browser tab connected, the server would never exit on its own and `source.stop()` would not run. **Always start uvicorn with a graceful shutdown timeout**, in the Docker `CMD`, the start script and any development command:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --timeout-graceful-shutdown 3
+```
+
+Keep it well under Docker's 10 s stop timeout. `test_stream_http.py` covers this behaviour.
+
 ---
 
 ## 11. Configuration reference
@@ -1579,7 +1680,7 @@ Only `MASSIVE_API_KEY` and `LLM_MOCK` are required by `PLAN.md` section 5. The r
 | `MARKET_FORCE_SIMULATOR` | false | `true` ignores the key (demos, tests, CI) |
 | `MASSIVE_MODE` | `auto` | `auto` (snapshot, fall back to eod on 403), `snapshot`, or `eod` (skips the probe; best for a known free key) |
 | `MASSIVE_POLL_INTERVAL` | 15 | Seconds between snapshot polls (minimum 1). Paid: 2 to 15; free keys are not polled (eod mode refreshes hourly) |
-| `SIM_SEED` | unset | Integer: reproducible simulator series |
+| `SIM_SEED` | unset | Non-negative integer: reproducible simulator series (anything else is ignored with a warning) |
 | `SimulatorDataSource(update_interval=)` | 0.5 s | Tick cadence |
 | `GBMSimulator(dt=)` | 8.48e-8 | Per-tick variance; keep consistent with the interval |
 | `GBMSimulator(event_probability=)` | 0.001 | Shock rate; 0 for calm tests |
@@ -1594,7 +1695,7 @@ Never log the API key or any URL containing `apiKey=`. The client sends the key 
 
 ## 12. Testing
 
-Run: `uv run --extra dev pytest -v` (config already has `asyncio_mode = "auto"`). Result of the prototype run: **112 passed** (the 13 old `test_massive.py` tests are replaced, not counted).
+Run: `uv run --extra dev pytest -v` (config already has `asyncio_mode = "auto"`). Current results are in `MARKET_DATA_SUMMARY.md`.
 
 ### 12.1 Strategy
 
@@ -1610,509 +1711,23 @@ Delete `tests/market/test_massive.py`: it mocks snapshots with a non-existent `l
 
 No live Massive calls in CI. An optional script `backend/scripts/massive_smoke.py` (runs only when `MASSIVE_API_KEY` is set) should print one real snapshot, one single-ticker snapshot, one grouped-daily response and the error body of a deliberately bad request, to settle Section 14.
 
-### 12.2 `test_massive_parse.py`
-
-```python
-"""Pure-function tests for massive_parse, using the real SDK models."""
-
-import pytest
-from massive.exceptions import AuthError, BadResponse
-from massive.rest.models import TickerSnapshot
-
-from app.market.massive_parse import ErrorKind, classify_error, extract_quote, to_unix_seconds
-
-NOW = 1_764_081_000.0  # 2025-11-25
-
-
-def snap(**overrides) -> TickerSnapshot:
-    """A TickerSnapshot parsed from the documented JSON shape (camelCase keys)."""
-    d = {
-        "ticker": "AAPL",
-        "updated": 1_764_080_900_000_000_000,
-        "day": {"o": 1, "h": 2, "l": 1, "c": 190.4, "v": 10},
-        "min": {"c": 190.3, "t": 1_764_080_880_000},
-        "prevDay": {"c": 189.0},
-        "lastTrade": {"p": 190.5, "t": 1_764_080_900_000_000_000},
-    }
-    d.update(overrides)
-    return TickerSnapshot.from_dict({k: v for k, v in d.items() if v is not None})
-
-
-class TestToUnixSeconds:
-    @pytest.mark.parametrize(
-        "raw",
-        [1_764_080_900_000_000_000, 1_764_080_900_000_000, 1_764_080_900_000, 1_764_080_900],
-    )
-    def test_all_units(self, raw):
-        assert to_unix_seconds(raw, NOW) == pytest.approx(1_764_080_900)
-
-    @pytest.mark.parametrize("bad", [None, 0, -5, "x", float("nan"), True, 1.0])
-    def test_bad_values_fall_back_to_now(self, bad):
-        assert to_unix_seconds(bad, NOW) == NOW
-
-    def test_far_future_is_rejected(self):
-        assert to_unix_seconds(NOW + 10 * 86400, NOW) == NOW
-
-
-class TestExtractQuote:
-    def test_prefers_last_trade(self):
-        q = extract_quote(snap(), NOW)
-        assert (q.price, q.prev_close) == (190.5, 189.0)
-        assert q.timestamp == pytest.approx(1_764_080_900)
-
-    def test_falls_back_to_minute_bar(self):  # Starter plan: no lastTrade
-        q = extract_quote(snap(lastTrade=None), NOW)
-        assert q.price == 190.3 and q.timestamp == pytest.approx(1_764_080_880)
-
-    def test_falls_back_to_day_then_prev_close(self):
-        assert extract_quote(snap(lastTrade=None, min=None), NOW).price == 190.4
-        q = extract_quote(snap(lastTrade=None, min=None, day={"c": 0}), NOW)  # pre-market
-        assert q.price == 189.0
-
-    def test_zero_prices_are_not_prices(self):
-        s = snap(lastTrade={"p": 0, "t": 1}, min={"c": 0}, day={"c": 0}, prevDay=None)
-        assert extract_quote(s, NOW) is None
-
-    def test_empty_snapshot(self):
-        assert extract_quote(TickerSnapshot(ticker="X"), NOW) is None
-
-
-class TestClassifyError:
-    def test_auth_error(self):
-        assert classify_error(AuthError("no key")) is ErrorKind.AUTH
-
-    @pytest.mark.parametrize(
-        "body, kind",
-        [
-            (
-                '{"status":"NOT_AUTHORIZED","message":"Your plan doesn\'t include this data"}',
-                ErrorKind.FORBIDDEN,
-            ),
-            (
-                '{"status":"ERROR","error":"You\'ve exceeded the maximum requests per minute"}',
-                ErrorKind.RATE_LIMIT,
-            ),
-            ('{"status":"ERROR","message":"Unknown API Key"}', ErrorKind.AUTH),
-            ('{"status":"NOT_FOUND","message":"Ticker not found."}', ErrorKind.NOT_FOUND),
-            ("boom", ErrorKind.OTHER),
-        ],
-    )
-    def test_bad_response_bodies(self, body, kind):
-        assert classify_error(BadResponse(body)) is kind
-
-    def test_network_and_429_retry_exhaustion(self):
-        assert classify_error(TimeoutError("read timed out")) is ErrorKind.NETWORK
-        assert classify_error(RuntimeError("too many 429 error responses")) is ErrorKind.RATE_LIMIT
-```
-
-### 12.3 `test_massive_source.py`
-
-```python
-"""MassiveDataSource tests against a fake SDK client that returns real SDK models."""
-
-import asyncio
-
-import pytest
-from massive.exceptions import AuthError, BadResponse
-from massive.rest.models import GroupedDailyAgg, TickerSnapshot
-
-from app.market import MarketDataError, MarketDataUnavailableError, PriceCache, reconcile_tickers
-from app.market.massive_client import MassiveDataSource
-
-FORBIDDEN = BadResponse('{"status":"NOT_AUTHORIZED","message":"Your plan doesn\'t include this"}')
-RATE = BadResponse('{"status":"ERROR","error":"You\'ve exceeded the maximum requests per minute"}')
-
-
-def snap(ticker, price, prev=100.0, ts=1_764_080_900_000_000_000):
-    return TickerSnapshot.from_dict(
-        {"ticker": ticker, "lastTrade": {"p": price, "t": ts}, "prevDay": {"c": prev}}
-    )
-
-
-def bar(ticker, close):
-    return GroupedDailyAgg(ticker=ticker, close=close)
-
-
-class Seq:
-    """Responses returned in order; the last one repeats. Exceptions are raised."""
-
-    def __init__(self, *items):
-        self.items = list(items)
-
-    def next(self):
-        return self.items.pop(0) if len(self.items) > 1 else self.items[0]
-
-
-class FakeClient:
-    """Stands in for massive.RESTClient. Each attribute is a value, an Exception to
-    raise, or a Seq of those."""
-
-    def __init__(self, snapshots=None, grouped=None, single=None):
-        self.snapshots, self.grouped, self.single = snapshots, grouped, single
-        self.calls: list[tuple] = []
-
-    @staticmethod
-    def _resolve(item):
-        if isinstance(item, Seq):
-            item = item.next()
-        if isinstance(item, Exception):
-            raise item
-        return item
-
-    def get_snapshot_all(self, market_type, tickers=None, **kw):
-        self.calls.append(("snapshot_all", tuple(tickers)))
-        return self._resolve(self.snapshots)
-
-    def get_snapshot_ticker(self, market_type, ticker, **kw):
-        self.calls.append(("snapshot_ticker", ticker))
-        return self._resolve(self.single)
-
-    def get_grouped_daily_aggs(self, day, adjusted=None, **kw):
-        self.calls.append(("grouped", day))
-        return self._resolve(self.grouped)
-
-
-def make(client, **kw):
-    cache = PriceCache()
-    return cache, MassiveDataSource("k", cache, poll_interval=0.05, client=client, **kw)
-
-
-async def test_snapshot_mode_populates_cache_before_start_returns():
-    cache, src = make(FakeClient(snapshots=[snap("AAPL", 190.5, 189.0), snap("MSFT", 420.0)]))
-    await src.start(["aapl", "MSFT"])
-    try:
-        u = cache.get("AAPL")
-        assert (u.price, u.prev_close) == (190.5, 189.0)
-        assert round(u.day_change_percent, 2) == 0.79
-        assert src.mode == "massive-snapshot" and src.get_tickers() == ["AAPL", "MSFT"]
-    finally:
-        await src.stop()
-
-
-async def test_403_in_auto_mode_falls_back_to_eod():
-    # Friday 2025-11-21 and Thursday 2025-11-20 style sessions: two grouped calls.
-    client = FakeClient(
-        snapshots=FORBIDDEN,
-        grouped=Seq([bar("AAPL", 195.0), bar("PYPL", 65.0)], [bar("AAPL", 190.0)]),
-    )
-    cache, src = make(client, call_gap=0.0)
-    await src.start(["AAPL"])
-    try:
-        for _ in range(100):
-            if cache.get("AAPL"):
-                break
-            await asyncio.sleep(0.02)
-        u = cache.get("AAPL")
-        assert (u.price, u.prev_close) == (195.0, 190.0)
-        assert src.mode == "massive-eod"
-        assert await src.validate_ticker("PYPL") is True
-        assert await src.validate_ticker("NOPE") is False
-        await src.add_ticker("PYPL")  # instant: whole market already in memory
-        assert cache.get_price("PYPL") == 65.0
-    finally:
-        await src.stop()
-
-
-async def test_forced_snapshot_mode_does_not_fall_back():
-    cache, src = make(FakeClient(snapshots=FORBIDDEN), requested_mode="snapshot")
-    await src.start(["AAPL"])
-    try:
-        assert src.mode == "massive-snapshot" and src.status()["last_error"].startswith("forbidden")
-    finally:
-        await src.stop()
-
-
-async def test_bad_key_raises_unavailable():
-    _, src = make(FakeClient(snapshots=AuthError("bad")))
-    with pytest.raises(MarketDataUnavailableError):
-        await src.start(["AAPL"])
-
-
-async def test_rate_limit_doubles_interval_then_recovers():
-    client = FakeClient(snapshots=Seq([snap("AAPL", 1.0)], RATE, [snap("AAPL", 2.0)]))
-    cache, src = make(client)
-    await src.start(["AAPL"])
-    try:
-        await asyncio.sleep(0.12)  # first loop poll hits RATE
-        assert src.status()["poll_interval"] > 0.05 or src.status()["last_error"] is None
-        await asyncio.sleep(0.3)
-        assert cache.get_price("AAPL") == 2.0 and src.status()["poll_interval"] == 0.05
-    finally:
-        await src.stop()
-
-
-async def test_missing_and_removed_tickers_are_tolerated():
-    client = FakeClient(snapshots=[snap("AAPL", 190.0)])  # MSFT absent from response
-    cache, src = make(client)
-    await src.start(["AAPL", "MSFT"])
-    try:
-        assert cache.get("MSFT") is None
-        await src.remove_ticker("AAPL")
-        assert cache.get("AAPL") is None
-        await asyncio.sleep(0.15)  # a later poll must not resurrect it
-        assert cache.get("AAPL") is None
-    finally:
-        await src.stop()
-
-
-async def test_add_ticker_triggers_early_poll():
-    client = FakeClient(snapshots=[snap("AAPL", 190.0), snap("TSLA", 250.0)])
-    cache, src = make(client)
-    src._base_interval = src._interval = 30.0  # would otherwise wait 30 s
-    await src.start(["AAPL"])
-    try:
-        await src.add_ticker("TSLA")
-        for _ in range(100):
-            if cache.get("TSLA"):
-                break
-            await asyncio.sleep(0.05)
-        assert cache.get_price("TSLA") == 250.0
-    finally:
-        await src.stop()
-
-
-async def test_validate_ticker_snapshot_mode():
-    client = FakeClient(snapshots=[snap("AAPL", 1.0)], single=snap("PYPL", 65.0))
-    _, src = make(client)
-    await src.start(["AAPL"])
-    try:
-        assert await src.validate_ticker("pypl") is True
-        client.single = BadResponse('{"status":"NOT_FOUND","message":"Ticker not found."}')
-        assert await src.validate_ticker("ZZZZ") is False
-        client.single = RATE
-        with pytest.raises(MarketDataError):
-            await src.validate_ticker("MSFT")
-        assert await src.validate_ticker("not a ticker!") is False
-    finally:
-        await src.stop()
-
-
-async def test_reconcile_tickers_adds_and_removes():
-    cache, src = make(FakeClient(snapshots=[snap("AAPL", 1.0)]))
-    await src.start(["AAPL", "MSFT"])
-    try:
-        await reconcile_tickers(src, ["aapl", "NVDA"])
-        assert sorted(src.get_tickers()) == ["AAPL", "NVDA"]
-    finally:
-        await src.stop()
-```
-
-### 12.4 `test_contract.py`
-
-```python
-"""Contract tests: behaviour every MarketDataSource must share."""
-
-import asyncio
-
-import pytest
-from massive.rest.models import TickerSnapshot
-
-from app.market import PriceCache
-from app.market.massive_client import MassiveDataSource
-from app.market.simulator import SimulatorDataSource
-from tests.market.test_massive_source import FakeClient, snap
-
-
-class EchoClient(FakeClient):
-    """Returns a snapshot for whatever tickers are requested."""
-
-    def get_snapshot_ticker(self, market_type, ticker, **kw):
-        return snap(ticker, 100.0)
-
-    def get_snapshot_all(self, market_type, tickers=None, **kw):
-        return [
-            TickerSnapshot.from_dict(
-                {"ticker": t, "lastTrade": {"p": 100.0, "t": 1_764_080_900_000_000_000}}
-            )
-            for t in tickers
-        ]
-
-
-def build(kind, cache):
-    if kind == "simulator":
-        return SimulatorDataSource(cache, update_interval=0.02)
-    return MassiveDataSource("k", cache, poll_interval=0.02, client=EchoClient())
-
-
-@pytest.fixture(params=["simulator", "massive"])
-async def source(request):
-    cache = PriceCache()
-    src = build(request.param, cache)
-    src.cache = cache
-    yield src
-    await src.stop()
-
-
-async def test_start_populates_cache(source):
-    await source.start(["AAPL", "MSFT"])
-    assert source.cache.get_price("AAPL") and source.cache.get_price("MSFT")
-
-
-async def test_add_remove_are_idempotent_and_normalised(source):
-    await source.start(["AAPL"])
-    await source.add_ticker(" nvda ")
-    await source.add_ticker("NVDA")
-    assert source.get_tickers().count("NVDA") == 1
-    for _ in range(100):
-        if source.cache.get("NVDA"):
-            break
-        await asyncio.sleep(0.05)
-    assert source.cache.get("NVDA") is not None
-    await source.remove_ticker("nvda")
-    await source.remove_ticker("NVDA")
-    assert "NVDA" not in source.get_tickers() and source.cache.get("NVDA") is None
-
-
-async def test_stop_twice_is_safe_and_status_shape(source):
-    await source.start(["AAPL"])
-    assert await source.validate_ticker("AAPL") is True
-    assert await source.validate_ticker("1bad!") is False
-    await source.stop()
-    await source.stop()
-    assert {"mode", "degraded", "tickers"} <= set(source.status())
-```
-
-### 12.5 `test_design_extras.py`
-
-```python
-"""Tests for the design additions: prev_close, seeded simulator, SSE, factory fallback."""
-
-import asyncio
-import json
-import math
-
-import numpy as np
-import pytest
-from massive.exceptions import AuthError
-
-from app.market import PriceCache, create_market_data_source, start_market_data
-from app.market.massive_client import MassiveDataSource, make_client
-from app.market.simulator import GBMSimulator, SimulatorDataSource
-from app.market.stream import _generate_events
-
-
-class TestPrevClose:
-    def test_day_change_and_stickiness(self):
-        c = PriceCache()
-        c.update("AAPL", 101.0, prev_close=100.0)
-        u = c.update("AAPL", 102.0)  # prev_close omitted: kept
-        assert u.prev_close == 100.0 and u.day_change == 2.0 and u.day_change_percent == 2.0
-        assert u.to_dict()["day_change_percent"] == 2.0
-
-    def test_unknown_baseline_is_none_not_zero(self):
-        u = PriceCache().update("AAPL", 101.0)
-        assert u.day_change is None and u.to_dict()["prev_close"] is None
-
-
-class TestSimulator:
-    def test_same_seed_same_series(self):
-        a, b = GBMSimulator(["AAPL", "MSFT"], seed=7), GBMSimulator(["AAPL", "MSFT"], seed=7)
-        assert [a.step() for _ in range(50)] == [b.step() for _ in range(50)]
-
-    def test_volatility_calibration(self):
-        sim = GBMSimulator(["AAPL"], event_probability=0.0, seed=1)
-        px = [sim.get_price("AAPL")] + [sim.step()["AAPL"] for _ in range(20000)]
-        # use unrounded internal path via many steps: 2dp rounding adds noise, so compare loosely
-        r = np.diff(np.log(px))
-        sigma_hat = r.std() / math.sqrt(GBMSimulator.DEFAULT_DT)
-        assert sigma_hat == pytest.approx(0.22, rel=0.15)
-
-    def test_correlation_tech_vs_cross_sector(self):
-        sim = GBMSimulator(["AAPL", "MSFT", "JPM"], event_probability=0.0, dt=1e-6, seed=3)
-        rows = [list(sim.step().values()) for _ in range(20000)]
-        r = np.diff(np.log(np.array(rows)), axis=0)
-        corr = np.corrcoef(r.T)
-        assert corr[0, 1] == pytest.approx(0.6, abs=0.06)  # AAPL-MSFT
-        assert corr[0, 2] == pytest.approx(0.3, abs=0.06)  # AAPL-JPM
-
-    def test_known_and_unknown_start_prices(self):
-        sim = GBMSimulator(["PYPL", "ZZZZ"], seed=5)
-        assert sim.get_price("PYPL") == 65.0
-        assert 50 <= sim.get_price("ZZZZ") <= 300
-
-    def test_default_ten_tickers_cholesky_ok(self):
-        from app.market.seed_prices import SEED_PRICES
-
-        sim = GBMSimulator(list(SEED_PRICES), seed=1)
-        assert sim._cholesky is not None and len(sim.step()) == 10
-
-    async def test_source_sets_prev_close_and_normalises(self):
-        cache = PriceCache()
-        src = SimulatorDataSource(cache, update_interval=0.01, seed=1)
-        await src.start(["aapl"])
-        await src.add_ticker("pypl ")
-        await asyncio.sleep(0.05)
-        await src.stop()
-        assert cache.get("AAPL").prev_close == 190.0 and cache.get("PYPL").prev_close == 65.0
-        assert src.get_tickers() == ["AAPL", "PYPL"] and src.mode == "simulator"
-
-
-class FakeRequest:
-    client = None
-
-    def __init__(self, disconnect_after: int):
-        self.n, self.limit = 0, disconnect_after
-
-    async def is_disconnected(self):
-        self.n += 1
-        return self.n > self.limit
-
-
-class TestSSE:
-    async def test_data_event_then_heartbeat_then_removal(self):
-        cache = PriceCache()
-        cache.update("AAPL", 190.0, prev_close=189.0)
-        gen = _generate_events(cache, FakeRequest(8), interval=0.01, heartbeat=0.03)
-        out = [await gen.__anext__() for _ in range(3)]
-        assert out[0] == "retry: 1000\n\n"
-        payload = json.loads(out[1].removeprefix("data: "))
-        assert payload["AAPL"]["prev_close"] == 189.0 and payload["AAPL"]["day_change"] == 1.0
-        assert out[2] == ": keepalive\n\n"
-        cache.remove("AAPL")  # removal bumps the version -> client receives {}
-        rest = [chunk async for chunk in gen]
-        assert "data: {}\n\n" in rest
-
-    def test_router_factory_is_repeatable(self):
-        from app.market import create_stream_router
-
-        routes = lambda r: [x.path for x in r.routes]  # noqa: E731
-        assert routes(create_stream_router(PriceCache())) == ["/api/stream/prices"]
-        assert routes(create_stream_router(PriceCache())) == ["/api/stream/prices"]
-
-
-class TestFactory:
-    def test_selection(self, monkeypatch):
-        monkeypatch.delenv("MASSIVE_API_KEY", raising=False)
-        assert type(create_market_data_source(PriceCache())).__name__ == "SimulatorDataSource"
-        monkeypatch.setenv("MASSIVE_API_KEY", "   ")
-        assert type(create_market_data_source(PriceCache())).__name__ == "SimulatorDataSource"
-        monkeypatch.setenv("MASSIVE_API_KEY", "k")
-        assert isinstance(create_market_data_source(PriceCache()), MassiveDataSource)
-        monkeypatch.setenv("MARKET_FORCE_SIMULATOR", "true")
-        assert type(create_market_data_source(PriceCache())).__name__ == "SimulatorDataSource"
-
-    async def test_bad_key_falls_back_to_degraded_simulator(self, monkeypatch):
-        monkeypatch.setenv("MASSIVE_API_KEY", "bad")
-        monkeypatch.delenv("MARKET_FORCE_SIMULATOR", raising=False)
-
-        from tests.market.test_massive_source import FakeClient
-
-        monkeypatch.setattr(
-            "app.market.massive_client.make_client",
-            lambda *a, **k: FakeClient(snapshots=AuthError("Unknown API Key")),
-        )
-        cache = PriceCache()
-        src = await start_market_data(cache, ["AAPL"])
-        try:
-            assert src.mode == "simulator" and src.status()["degraded"] is True
-            assert cache.get_price("AAPL") is not None
-        finally:
-            await src.stop()
-
-    def test_make_client_accepts_our_kwargs(self):
-        client = make_client("k", 5.0)
-        assert client.retries == 0
-```
+### 12.2 Test files
+
+The tests live in `backend/tests/market/` and are not copied here, so this document cannot drift from them.
+
+| File | Covers |
+|---|---|
+| `test_models.py`, `test_cache.py` | `PriceUpdate`, `PriceCache` |
+| `test_interface.py` | base-class defaults, `clean_tickers` |
+| `test_simulator.py`, `test_simulator_source.py` | GBM maths, the async source, error resilience |
+| `test_factory.py` | source selection |
+| `test_massive_parse.py`, `test_massive_source.py` | parsing, error classification, the poller against a fake client |
+| `test_contract.py` | behaviour both sources share |
+| `test_design_extras.py` | `prev_close`, seeding, correlation, SSE generator, bad-key fallback |
+| `test_review_fixes.py` | regression tests for review findings |
+| `test_stream_http.py` | the SSE route over real uvicorn, including shutdown with a client connected |
+
+Shared helpers are in `helpers.py`; use `wait_until` instead of fixed sleeps.
 
 ---
 
@@ -2125,7 +1740,7 @@ In order; each step leaves the suite green.
 3. **Simulator**: replace `simulator.py` (Section 6.3).
 4. **Massive**: add `massive_parse.py`, replace `massive_client.py`; delete `tests/market/test_massive.py`; add `test_massive_parse.py` and `test_massive_source.py`.
 5. **Factory, stream, tracking, `__init__.py`**: Sections 8, 9, 10.1; add `test_contract.py` and `test_design_extras.py`.
-6. **App wiring**: Section 10.2 once `backend/db` exists. `/api/health` must report `market.mode`.
+6. **App wiring**: Section 10.2 once `backend/db` exists. `/api/health` must report `market.mode`. Start uvicorn with `--timeout-graceful-shutdown` (Section 10.4).
 7. **Docs**: update `backend/CLAUDE.md` (new `PriceUpdate` fields, `reconcile_tickers`, `start_market_data`) and `MARKET_DATA_SUMMARY.md`; move the superseded drafts to `archive/`.
 8. **Live check** (needs a key, optional): run the smoke script from 12.1 once and resolve Section 14.
 9. Run `uv run --extra dev ruff check app/ tests/` and the demo `uv run market_data_demo.py` (it only uses `cache.get_all()`, which is unchanged).
@@ -2133,6 +1748,25 @@ In order; each step leaves the suite green.
 ---
 
 ## 14. Open items
+
+### 14.1 Known Massive defects (found in review, not yet fixed)
+
+Details and suggested fixes are in `MARKET_DATA_REVIEW.md`. None affects the simulator-only setup.
+
+| Review finding | Defect |
+|---|---|
+| 1 (critical) | Snapshot calls pass the `SnapshotMarketType` enum, so the SDK builds a wrong URL. Pass `.value` |
+| 3 | With no tickers the startup probe is skipped, so a free or bad key is never detected |
+| 6 | The request deadline abandons threads, which can stop the process exiting |
+| 7 | End-of-day mode gives up if the newest weekday is refused |
+| 8 | End-of-day refresh can publish the wrong daily baseline |
+| 9 | Forced `snapshot` mode still switches to end-of-day |
+| 10 | Adding a ticker bypasses rate-limit backoff |
+| 13 | `MASSIVE_POLL_INTERVAL=nan` is accepted; a bad `MASSIVE_MODE` stops startup; `stop()` keeps the fallback |
+
+The runtime simulator fallback also starts from seed prices rather than the last real prices, so prices jump when it takes over (finding 4).
+
+### 14.2 Needs a live key
 
 Everything marked here could not be confirmed without a live Massive key. The design degrades safely in each case.
 

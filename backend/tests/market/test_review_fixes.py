@@ -6,7 +6,7 @@ import logging
 import pytest
 from massive.exceptions import AuthError, BadResponse
 
-from app.market import PriceCache, reconcile_tickers
+from app.market import PriceCache, reconcile_tickers, start_market_data
 from app.market.factory import _env_seed
 from app.market.massive_client import MassiveDataSource
 from app.market.massive_parse import ErrorKind, classify_error
@@ -21,10 +21,25 @@ def test_unknown_ticker_start_price_is_deterministic():
     assert a == b and 50.0 <= a <= 300.0
 
 
-@pytest.mark.parametrize("raw,expected", [("42", 42), ("-7", -7), ("--5", None), ("x", None), ("", None)])
+@pytest.mark.parametrize(
+    "raw,expected",
+    [("42", 42), ("0", 0), ("-7", None), ("--5", None), ("x", None), ("", None)],
+)
 def test_env_seed_never_raises(monkeypatch, raw, expected):
     monkeypatch.setenv("SIM_SEED", raw)
     assert _env_seed() == expected
+
+
+@pytest.mark.parametrize("raw", ["-7", "0", "x"])
+async def test_any_sim_seed_still_starts(monkeypatch, raw):
+    monkeypatch.delenv("MASSIVE_API_KEY", raising=False)
+    monkeypatch.setenv("SIM_SEED", raw)
+    cache = PriceCache()
+    src = await start_market_data(cache, ["AAPL"])
+    try:
+        assert cache.get_price("AAPL") == 190.0
+    finally:
+        await src.stop()
 
 
 def test_classify_error_is_not_fooled_by_substrings():
@@ -83,7 +98,9 @@ async def test_eod_publishes_latest_closes_before_second_call_finishes():
                 return [bar("AAPL", 190.0)]
             return [bar("AAPL", 195.0)]
 
-    cache, src = make(SlowClient(snapshots=BadResponse("NOT_AUTHORIZED doesn't include")), call_gap=0.0)
+    cache, src = make(
+        SlowClient(snapshots=BadResponse("NOT_AUTHORIZED doesn't include")), call_gap=0.0
+    )
     await src.start(["AAPL"])
     try:
         for _ in range(100):

@@ -26,7 +26,7 @@ Create a `.env` in the project root:
 
 ```bash
 OPENROUTER_API_KEY=your-key   # required for AI chat
-MASSIVE_API_KEY=              # optional: real market data (simulator if empty)
+MASSIVE_API_KEY=              # leave empty for now (see Status); the simulator is used
 LLM_MOCK=false                # true = deterministic mock LLM (testing, no network)
 ```
 
@@ -34,7 +34,8 @@ LLM_MOCK=false                # true = deterministic mock LLM (testing, no netwo
 
 | Component | State |
 |---|---|
-| Market data (simulator, Massive client, price cache, SSE) | Complete — see `planning/MARKET_DATA_SUMMARY.md` |
+| Market data: simulator, price cache, SSE | Complete — see `planning/MARKET_DATA_SUMMARY.md` |
+| Market data: Massive (real prices) | Not working yet — known defects, so leave `MASSIVE_API_KEY` empty |
 | Portfolio, watchlist, chat APIs | Planned |
 | Frontend | Design foundation only (`frontend/src/`) |
 | Docker and start/stop scripts | Planned |
@@ -45,9 +46,10 @@ LLM_MOCK=false                # true = deterministic mock LLM (testing, no netwo
 Backend (from `backend/`):
 
 ```bash
-uv sync
-uv run pytest
-uv run python market_data_demo.py   # market data demo
+uv sync --extra dev                  # includes pytest, ruff and the demo's dependencies
+uv run --extra dev pytest
+uv run --extra dev ruff check .
+uv run --extra dev market_data_demo.py   # market data demo
 ```
 
 Once the Docker build lands, the app will run with `scripts/start_mac.sh` and be served at <http://localhost:8000>.
@@ -57,7 +59,8 @@ Once the Docker build lands, the app will run with `scripts/start_mac.sh` and be
 - `planning/PLAN.md` — full project specification (source of truth)
 - `planning/OUI_FORMAT.md` — openUI visual standard (logo, colours, fonts, components)
 - `planning/MARKET_DATA_SUMMARY.md` — completed market data component
-- `planning/TEST_PLAN.md` — testing strategy
+- `planning/MARKET_DATA_REVIEW.md` — latest market data code review and open items
+- `planning/PLAN.md` Section 12 — testing strategy (`planning/TEST_PLAN.md` is a template to fill in later)
 
 ## License
 

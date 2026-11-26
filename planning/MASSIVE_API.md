@@ -48,7 +48,7 @@ Sources and caveats:
 - Exact prices and plan names change; the pricing page did not render for our fetch. Check `massive.com/pricing`. **[unverified]** for Starter/Developer limits beyond "unlimited".
 - Snapshot docs say Stocks Basic has no access, and the KB says "Starter and above. The free Basic plans do not include the snapshot."
 
-**Consequence for FinAlly:** a free key can only use the aggregates endpoints (Section 5), which give end-of-day data. A free key cannot power the current snapshot-based poller. See MARKET_INTERFACE.md for how we handle this.
+**Consequence for FinAlly:** a free key can only use the aggregates endpoints (Section 5), which give end-of-day data. A free key cannot power the current snapshot-based poller. See MARKET_DATA_DESIGN.md Section 7.4 for how we handle this.
 
 ### Errors
 
@@ -99,7 +99,7 @@ Field notes:
 - `todaysChange` / `todaysChangePerc`: change versus previous close, computed by Massive.
 - `lastTrade` is present **only if the plan includes trades**; `lastQuote` only if it includes quotes. On Starter it may be absent, so code must fall back to `min.c` or `day.c`.
 - Sub-field letters are not defined on the page; the meanings above follow the same convention as the aggregates endpoints (`o,h,l,c,v,vw,n`) and the last-trade endpoint (`p` price, `s` size, `t` timestamp). **[unverified]** for `av`, `dv`, `dav`.
-- `updated` and `lastTrade.t` look like Unix **nanoseconds** in the raw JSON samples, while `min.t` is Unix milliseconds. The page does not state units. **[unverified]**: normalize by magnitude (see MARKET_INTERFACE.md).
+- `updated` and `lastTrade.t` look like Unix **nanoseconds** in the raw JSON samples, while `min.t` is Unix milliseconds. The page does not state units. **[unverified]**: normalize by magnitude (see MARKET_DATA_DESIGN.md Section 7.3).
 - A ticker the plan/market doesn't know may be silently absent from `tickers`; don't assume the count matches the request.
 - Freshness: "Snapshot data is cleared daily at 3:30 AM EST and begins to repopulate as exchanges report new data, which can start as early as 4:00 AM EST." Between those times the snapshot can be empty or stale, so poll code must tolerate missing tickers.
 

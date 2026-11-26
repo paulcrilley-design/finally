@@ -18,6 +18,7 @@ from .interface import (
     MarketDataError,
     MarketDataSource,
     MarketDataUnavailableError,
+    clean_tickers,
     is_valid_symbol,
     normalize_ticker,
 )
@@ -121,7 +122,7 @@ class MassiveDataSource(MarketDataSource):
     async def start(self, tickers: list[str]) -> None:
         if self._task is not None and not self._task.done():
             raise RuntimeError("MassiveDataSource already started")
-        self._tickers = list(dict.fromkeys(normalize_ticker(t) for t in tickers))
+        self._tickers = clean_tickers(tickers)
         self._client = self._client or make_client(self._api_key, self._timeout)
 
         first_delay = 0.0
