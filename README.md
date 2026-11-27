@@ -59,8 +59,8 @@ Once the Docker build lands, the app will run with `scripts/start_mac.sh` and be
 - `planning/PLAN.md` — full project specification (source of truth)
 - `planning/OUI_FORMAT.md` — openUI visual standard (logo, colours, fonts, components)
 - `planning/MARKET_DATA_SUMMARY.md` — completed market data component
-- `planning/MARKET_DATA_REVIEW.md` — latest market data code review and open items
-- `planning/PLAN.md` Section 12 — testing strategy (`planning/TEST_PLAN.md` is a template to fill in later)
+- `planning/archive/MARKET_DATA_REVIEW.md` — latest market data code review and open items
+- `planning/PLAN.md` Section 12 — testing strategy (`planning/archive/TEST_PLAN.md` is a template to fill in later)
 
 ## License
 

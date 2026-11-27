@@ -43,7 +43,7 @@ uv run --extra dev pytest -v
 
 The app reads the process environment; nothing loads `.env` by itself.
 
-- `MASSIVE_API_KEY` - Optional. Leave empty to use the built-in simulator. The Massive path has known defects (see `../planning/MARKET_DATA_REVIEW.md`).
+- `MASSIVE_API_KEY` - Optional. Leave empty to use the built-in simulator. The Massive path has known defects (see `../planning/archive/MARKET_DATA_REVIEW.md`).
 - `SIM_SEED` - Optional non-negative integer for a reproducible simulator.
 - `MARKET_FORCE_SIMULATOR` - Optional. `true` ignores any Massive key.
 

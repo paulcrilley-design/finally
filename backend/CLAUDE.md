@@ -33,7 +33,7 @@ from app.market import PriceCache, PriceUpdate, MarketDataSource, create_market_
 - **`await start_market_data(cache, tickers)`** — Create and start a source; falls back to a `degraded` simulator if Massive rejects the key. Use this in the app lifespan.
 - **`await reconcile_tickers(source, wanted)`** — Idempotently sync the source with the union of all watchlists and open positions. Call after any watchlist or trade change.
 - Sources also expose `mode` (`simulator`, `massive-snapshot`, `massive-eod`), `status()` (for `/api/health`) and `await validate_ticker(t)`.
-- Optional env: `MASSIVE_MODE` (auto/snapshot/eod), `MASSIVE_POLL_INTERVAL`, `MARKET_FORCE_SIMULATOR`, `SIM_SEED`. Full design: `planning/MARKET_DATA_DESIGN.md`.
+- Optional env: `MASSIVE_MODE` (auto/snapshot/eod), `MASSIVE_POLL_INTERVAL`, `MARKET_FORCE_SIMULATOR`, `SIM_SEED`. Full design: `planning/archive/MARKET_DATA_DESIGN.md`.
 
 ### Rules for callers
 
@@ -41,7 +41,7 @@ from app.market import PriceCache, PriceUpdate, MarketDataSource, create_market_
 - A price of `None` means unknown: reject the trade, never substitute a value.
 - Sources drop invalid symbols passed to `start()`.
 - Nothing loads `.env`; the app or Docker must provide environment variables.
-- The Massive path has known defects (`planning/MARKET_DATA_REVIEW.md`); develop with the simulator.
+- The Massive path has known defects (`planning/archive/MARKET_DATA_REVIEW.md`); develop with the simulator.
 
 ### SSE Streaming
 

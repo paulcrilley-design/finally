@@ -1,6 +1,6 @@
 # Market Data Backend — Summary
 
-**Status (2026-11-26):** The simulator, price cache and SSE stream are ready to build on. **The Massive (real data) path is not ready** (open defects, never run against the live service): leave `MASSIVE_API_KEY` empty. Open items are listed in `MARKET_DATA_REVIEW.md`.
+**Status (2026-11-26):** The simulator, price cache and SSE stream are ready to build on. **The Massive (real data) path is not ready** (open defects, never run against the live service): leave `MASSIVE_API_KEY` empty. Open items are listed in `archive/MARKET_DATA_REVIEW.md`.
 
 ## What Was Built
 
