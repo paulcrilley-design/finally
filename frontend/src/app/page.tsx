@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 
 import { AddTicker } from "@/components/AddTicker";
+import { ChatPanel } from "@/components/ChatPanel";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
 import { Heatmap } from "@/components/Heatmap";
 import { PortfolioSummary } from "@/components/PortfolioSummary";
@@ -15,6 +16,7 @@ import { Eyebrow, HEADING, Panel, SUBHEADING } from "@/components/ui";
 import { ValueChart } from "@/components/ValueChart";
 import { Watchlist } from "@/components/Watchlist";
 import { heatmapTiles } from "@/lib/heatmap";
+import { useChat } from "@/lib/useChat";
 import { useMarket } from "@/lib/useMarket";
 import { usePortfolio } from "@/lib/usePortfolio";
 import { useValueHistory } from "@/lib/useValueHistory";
@@ -34,8 +36,14 @@ function Section({ id, title, children }: { id: string; title: string; children:
 }
 
 export default function Page() {
-  const { rows, quotes, history, status, error, addTicker, removeTicker } = useMarket();
-  const { portfolio, failed, trade } = usePortfolio(status);
+  const market = useMarket();
+  const { rows, quotes, history, status, error, addTicker, removeTicker } = market;
+  const { portfolio, failed, trade, reload } = usePortfolio(status);
+  // The assistant can trade and edit the watchlist, so both are reloaded after each message.
+  const chat = useChat(() => {
+    market.reload();
+    reload();
+  });
   const valued = portfolio && valuePortfolio(portfolio, quotes);
   const [removeError, setRemoveError] = useState("");
   const values = useValueHistory(portfolio);
@@ -67,7 +75,8 @@ export default function Page() {
           <ConnectionStatus status={status} />
         </div>
       </SiteHeader>
-      <main className="mx-auto grid w-full max-w-[1500px] flex-1 content-start gap-6 p-6 lg:grid-cols-2">
+      <div className="mx-auto flex w-full max-w-[1500px] flex-1 flex-col lg:flex-row lg:items-start">
+        <main className="grid min-w-0 flex-1 content-start gap-6 p-6 xl:grid-cols-2">
         <section
           id="watchlist"
           tabIndex={-1}
@@ -116,7 +125,16 @@ export default function Page() {
             <ValueChart history={values.history} failed={values.failed} />
           </Section>
         </div>
-      </main>
+        </main>
+        <aside aria-label="AI chat" className="p-6 pt-0 lg:sticky lg:top-0 lg:w-96 lg:pt-6 lg:pl-0">
+          <ChatPanel
+            messages={chat.messages}
+            pending={chat.pending}
+            error={chat.error}
+            onSend={chat.send}
+          />
+        </aside>
+      </div>
       <SiteFooter />
     </>
   );

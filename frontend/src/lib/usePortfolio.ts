@@ -45,5 +45,5 @@ export function usePortfolio(status: StreamStatus) {
     [load],
   );
 
-  return { portfolio, failed, trade };
+  return { portfolio, failed, trade, reload: load };
 }

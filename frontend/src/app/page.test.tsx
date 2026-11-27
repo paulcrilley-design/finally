@@ -33,6 +33,14 @@ const AFTER_BUY = {
 
 function stubFetch(status = 200) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url === "/api/chat") {
+      if (init?.method !== "POST") return Response.json({ messages: [] }, { status });
+      const messages = [
+        { id: "q", role: "user", content: "buy 2 AAPL", actions: null },
+        { id: "a", role: "assistant", content: "Done.", actions: [] },
+      ];
+      return Response.json({ messages });
+    }
     if (url === "/api/portfolio/history") return Response.json({ history: [] }, { status });
     if (url === "/api/portfolio") return Response.json(PORTFOLIO, { status });
     if (url === "/api/portfolio/trade") {
@@ -262,6 +270,20 @@ describe("Page", () => {
     const before = requests();
     await submitTrade("2");
     expect(requests()).toBeGreaterThan(before);
+  });
+
+  it("sends a chat message and reloads cash, positions and watchlist", async () => {
+    const fetchMock = stubFetch();
+    await renderLoaded();
+    const portfolioRequests = () =>
+      fetchMock.mock.calls.filter(([url]) => url === "/api/portfolio").length;
+    const before = [portfolioRequests(), watchlistRequests(fetchMock)];
+    const form = within(screen.getByRole("form", { name: "Chat" }));
+    fireEvent.change(form.getByLabelText("Message"), { target: { value: "buy 2 AAPL" } });
+    await act(async () => fireEvent.click(form.getByRole("button", { name: "Send" })));
+    expect(screen.getByRole("log")).toHaveTextContent("Done.");
+    expect(portfolioRequests()).toBeGreaterThan(before[0]);
+    expect(watchlistRequests(fetchMock)).toBeGreaterThan(before[1]);
   });
 
   it("closes the stream when the page is left", async () => {

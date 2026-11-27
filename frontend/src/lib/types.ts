@@ -51,3 +51,19 @@ export type TradeResponse = {
 };
 
 export type ValuePoint = { recorded_at: string; total_value: number };
+
+export type ChatAction = {
+  ticker: string;
+  status: "executed" | "rejected";
+  reason: string;
+} & (
+  | { type: "trade"; side: Side; quantity: number; price?: number }
+  | { type: "watchlist"; action: "add" | "remove" }
+);
+
+export type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  actions: ChatAction[] | null;
+};

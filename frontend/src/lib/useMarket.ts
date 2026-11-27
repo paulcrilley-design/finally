@@ -78,5 +78,14 @@ export function useMarket() {
       quote: data.quotes[item.ticker] ?? item,
       tick: data.ticks[item.ticker],
     })) ?? null;
-  return { rows, quotes: data.quotes, history, status, error, addTicker, removeTicker };
+  return {
+    rows,
+    quotes: data.quotes,
+    history,
+    status,
+    error,
+    addTicker,
+    removeTicker,
+    reload: load,
+  };
 }
