@@ -13,6 +13,7 @@ from .database import (
     tracked_tickers,
 )
 from .portfolio import TradeError, cents, execute_trade, read_portfolio
+from .snapshots import record_snapshots, value_history
 
 __all__ = [
     "DEFAULT_USER_ID",
@@ -22,6 +23,8 @@ __all__ = [
     "execute_trade",
     "load_prices",
     "read_portfolio",
+    "record_snapshots",
+    "value_history",
     "remove_from_watchlist",
     "save_prices",
     "connect",

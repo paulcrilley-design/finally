@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 from .database import UPSERT_PRICE, connect
+from .snapshots import add_snapshot
 
 CENT = Decimal("0.01")
 UNIT = Decimal("0.0001")  # smallest quantity, and the precision of an average cost
@@ -75,6 +77,7 @@ def execute_trade(
     quantity: Decimal,
     price: float | None,
     prev_close: float | None = None,
+    prices: Mapping[str, float] | None = None,
 ) -> dict:
     """Fill a market order in one transaction, or raise TradeError and change nothing."""
     quantity = check_quantity(quantity)
@@ -149,6 +152,8 @@ def execute_trade(
             " VALUES (:id, :user_id, :ticker, :side, :quantity, :price, :executed_at)",
             {**trade, "user_id": user_id},
         )
+        # In the same transaction, valuing the traded ticker at its fill price.
+        add_snapshot(conn, user_id, {**(prices or {}), ticker: price})
         # So that even a crash cannot restart below the price this trade filled at.
         conn.execute(UPSERT_PRICE, (ticker, price, prev_close or price, now))
     return trade

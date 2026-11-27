@@ -13,7 +13,7 @@ from app.errors import ApiError
 from app.identity import get_current_user
 from app.market import PriceCache, normalize_ticker
 from app.tracking import sync_tracked_tickers
-from db import TradeError, cents, execute_trade, read_portfolio
+from db import TradeError, cents, execute_trade, read_portfolio, value_history
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 
@@ -65,6 +65,11 @@ def get_portfolio(request: Request, user_id: Annotated[str, Depends(get_current_
     return portfolio_view(state.db_path, state.price_cache, user_id)
 
 
+@router.get("/history")
+def get_history(request: Request, user_id: Annotated[str, Depends(get_current_user)]) -> dict:
+    return {"history": value_history(request.app.state.db_path, user_id)}
+
+
 @router.post("/trade")
 async def trade(
     order: TradeRequest,
@@ -84,6 +89,7 @@ async def trade(
             Decimal(str(order.quantity)),
             update.price if update else None,
             update.prev_close if update else None,
+            {t: u.price for t, u in state.price_cache.get_all().items()},
         )
     except TradeError as refusal:
         raise ApiError(refusal.code, refusal.message) from refusal
