@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import { request } from "./api";
 import { openPriceStream } from "./priceStream";
 import { applyPrices, applyWatchlist, EMPTY_MARKET } from "./ticks";
 import type { StreamStatus, WatchlistItem, WatchlistResponse, WatchlistRow } from "./types";
@@ -7,56 +8,70 @@ import type { StreamStatus, WatchlistItem, WatchlistResponse, WatchlistRow } fro
 export type MarketError = "unavailable" | null;
 
 // Rows follow the stored watchlist for order and membership, with streamed values on top.
-export function useMarket(): {
-  rows: WatchlistRow[] | null;
-  status: StreamStatus;
-  error: MarketError;
-} {
+export function useMarket() {
   const [data, setData] = useState(EMPTY_MARKET);
   const [watchlist, setWatchlist] = useState<WatchlistItem[] | null>(null);
   const [status, setStatus] = useState<StreamStatus>("reconnecting");
   const [error, setError] = useState<MarketError>(null);
+  const latest = useRef(0); // only the newest watchlist response is applied
+
+  const show = useCallback((body: WatchlistResponse) => {
+    setWatchlist(body.watchlist);
+    setData((previous) => applyWatchlist(previous, body.watchlist));
+    setError(null);
+  }, []);
+
+  // A failure keeps the rows already shown.
+  const load = useCallback(() => {
+    const mine = ++latest.current;
+    request<WatchlistResponse>("/api/watchlist").then(
+      (body) => {
+        if (mine === latest.current) show(body);
+      },
+      () => {
+        if (mine === latest.current) setError("unavailable");
+      },
+    );
+  }, [show]);
 
   useEffect(() => {
-    let mounted = true;
-    let latestRequest = 0;
-
-    // A failure keeps the rows already shown.
-    async function loadWatchlist() {
-      const request = ++latestRequest;
-      const current = () => mounted && request === latestRequest;
-      try {
-        const response = await fetch("/api/watchlist");
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const body: WatchlistResponse = await response.json();
-        if (!current()) return;
-        setWatchlist(body.watchlist);
-        setData((previous) => applyWatchlist(previous, body.watchlist));
-        setError(null);
-      } catch {
-        if (current()) setError("unavailable");
-      }
-    }
-    loadWatchlist();
-
+    const requests = latest;
+    load();
     // Prices are never cleared on disconnect: the last ones stay on screen.
     const close = openPriceStream(
       (prices) => setData((previous) => applyPrices(previous, prices)),
       (next) => {
         setStatus(next);
-        if (next === "connected") loadWatchlist();
+        if (next === "connected") load();
       },
     );
     return () => {
-      mounted = false;
+      requests.current++; // ignore anything still in flight
       close();
     };
-  }, []);
+  }, [load]);
 
-  const rows =
+  const change = useCallback(
+    async (path: string, method: string, body?: unknown) => {
+      const response = await request<WatchlistResponse>(path, method, body);
+      latest.current++;
+      show(response);
+    },
+    [show],
+  );
+  const addTicker = useCallback(
+    (ticker: string) => change("/api/watchlist", "POST", { ticker }),
+    [change],
+  );
+  const removeTicker = useCallback(
+    (ticker: string) => change(`/api/watchlist/${encodeURIComponent(ticker)}`, "DELETE"),
+    [change],
+  );
+
+  const rows: WatchlistRow[] | null =
     watchlist?.map((item) => ({
       quote: data.quotes[item.ticker] ?? item,
       tick: data.ticks[item.ticker],
     })) ?? null;
-  return { rows, status, error };
+  return { rows, quotes: data.quotes, status, error, addTicker, removeTicker };
 }

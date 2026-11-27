@@ -68,6 +68,10 @@ export function Eyebrow({ children }: { children: ReactNode }) {
   );
 }
 
+export const INPUT =
+  "mt-1 block w-full rounded-xl border border-stroke bg-white px-3 py-2 text-sm text-navy-dark " +
+  "placeholder:text-gray-text focus:border-brand-teal";
+
 /** Page heading (h1) and section heading (h2) styles. */
 export const HEADING = "font-display text-2xl font-semibold text-navy-dark";
 export const SUBHEADING = "font-display text-xl font-semibold text-navy-dark";

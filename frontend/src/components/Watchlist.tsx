@@ -1,12 +1,8 @@
-import { formatChangePercent, formatPrice, type Tone } from "@/lib/format";
+import { formatChangePercent, formatPrice, TONE_CLASS } from "@/lib/format";
 import type { WatchlistRow } from "@/lib/types";
 import type { MarketError } from "@/lib/useMarket";
 
-const TONE_CLASS: Record<Tone, string> = {
-  gain: "text-brand-teal-ink",
-  loss: "text-brand-orange-ink",
-  flat: "text-navy-dark",
-};
+import { Button } from "./ui";
 
 const ARROWS = {
   up: { glyph: "\u25b2", className: "text-brand-teal-ink", flash: "flash-up" },
@@ -34,7 +30,15 @@ function PriceCell({ quote, tick }: WatchlistRow) {
   );
 }
 
-export function Watchlist({ rows, error }: { rows: WatchlistRow[] | null; error: MarketError }) {
+export function Watchlist({
+  rows,
+  error,
+  onRemove,
+}: {
+  rows: WatchlistRow[] | null;
+  error: MarketError;
+  onRemove?: (ticker: string) => void;
+}) {
   if (rows === null) {
     return (
       <p className="text-sm text-gray-text">
@@ -57,6 +61,11 @@ export function Watchlist({ rows, error }: { rows: WatchlistRow[] | null; error:
             <th scope="col" className="px-2 py-2 text-right font-semibold">
               Day change
             </th>
+            {onRemove && (
+              <th scope="col">
+                <span className="sr-only">Remove</span>
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -71,6 +80,18 @@ export function Watchlist({ rows, error }: { rows: WatchlistRow[] | null; error:
                 <td className={`px-2 py-2 text-right tabular-nums ${TONE_CLASS[change.tone]}`}>
                   {change.text}
                 </td>
+                {onRemove && (
+                  <td className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Remove ${quote.ticker}`}
+                      onClick={() => onRemove(quote.ticker)}
+                    >
+                      {"\u2715"}
+                    </Button>
+                  </td>
+                )}
               </tr>
             );
           })}

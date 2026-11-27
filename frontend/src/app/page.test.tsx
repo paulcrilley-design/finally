@@ -1,4 +1,4 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FakeEventSource } from "@/test/fakeEventSource";
@@ -13,8 +13,43 @@ const WATCHLIST = [
   { ticker: "ZZZZ", price: null },
 ];
 
+const PORTFOLIO = { cash: 10000, total_value: 10000, positions: [] };
+
+const AFTER_BUY = {
+  cash: 9800,
+  total_value: 10000,
+  positions: [
+    {
+      ticker: "AAPL",
+      quantity: 2,
+      avg_cost: 100,
+      price: 100,
+      market_value: 200,
+      unrealized_pnl: 0,
+      pnl_percent: 0,
+    },
+  ],
+};
+
 function stubFetch(status = 200) {
-  const fetchMock = vi.fn(async () => Response.json({ watchlist: WATCHLIST }, { status }));
+  const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url === "/api/portfolio") return Response.json(PORTFOLIO, { status });
+    if (url === "/api/portfolio/trade") {
+      const { quantity, side, ticker } = JSON.parse(init!.body as string);
+      if (quantity !== 2) {
+        const error = { code: "insufficient_cash", message: "Not enough cash." };
+        return Response.json({ error }, { status: 400 });
+      }
+      const trade = { ticker, side, quantity, price: 100 };
+      return Response.json({ trade, portfolio: AFTER_BUY });
+    }
+    if (init?.method === "DELETE") return Response.json({ watchlist: WATCHLIST.slice(1) });
+    if (init?.method === "POST") {
+      const added = { ticker: "PYPL", price: 65 };
+      return Response.json({ watchlist: [...WATCHLIST, added] });
+    }
+    return Response.json({ watchlist: WATCHLIST }, { status });
+  });
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }
@@ -29,9 +64,12 @@ function rowTexts() {
   return screen.getAllByRole("row").map((row) => row.textContent);
 }
 
+const watchlistRequests = (fetchMock: ReturnType<typeof stubFetch>) =>
+  fetchMock.mock.calls.filter(([url]) => url === "/api/watchlist").length;
+
 async function renderLoaded() {
   const view = render(<Page />);
-  await screen.findByRole("table");
+  await screen.findByRole("table", { name: "Watchlist" });
   return { ...view, source: FakeEventSource.instances[0] };
 }
 
@@ -90,10 +128,10 @@ describe("Page", () => {
   it("fetches the watchlist again on every open", async () => {
     const fetchMock = stubFetch();
     const { source } = await renderLoaded();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(watchlistRequests(fetchMock)).toBe(1);
     await act(async () => source.emitOpen());
     await act(async () => source.emitOpen());
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(watchlistRequests(fetchMock)).toBe(3);
   });
 
   it("keeps the last prices through errors and a closed source", async () => {
@@ -153,9 +191,51 @@ describe("Page", () => {
     expect(screen.getByRole("contentinfo")).toHaveTextContent(/simulated/);
   });
 
-  it("shows nothing about features that do not exist yet", async () => {
+  function banner() {
+    return screen.getByRole("banner");
+  }
+
+  async function submitTrade(quantity: string) {
+    const form = within(screen.getByRole("form", { name: "Trade" }));
+    fireEvent.change(form.getByLabelText("Ticker"), { target: { value: "aapl" } });
+    fireEvent.change(form.getByLabelText("Quantity"), { target: { value: quantity } });
+    await act(async () => fireEvent.click(form.getByRole("button", { name: "Buy" })));
+  }
+
+  it("shows cash and total value in the header", async () => {
     await renderLoaded();
-    expect(screen.queryByText(/cash|total value/i)).not.toBeInTheDocument();
+    expect(banner()).toHaveTextContent("Total value$10,000.00");
+    expect(banner()).toHaveTextContent("Cash$10,000.00");
+  });
+
+  it("shows a filled trade and keeps its values live", async () => {
+    const { source } = await renderLoaded();
+    await submitTrade("2");
+    expect(screen.getByText("Bought 2 AAPL at $100.00.")).toBeInTheDocument();
+    expect(banner()).toHaveTextContent("Cash$9,800.00");
+    act(() => source.emitMessage(JSON.stringify({ AAPL: { price: 110 } })));
+    const table = screen.getByRole("table", { name: "Positions" });
+    const cells = within(table).getAllByRole("cell").map((cell) => cell.textContent);
+    expect(cells).toEqual(["2", "100.00", "110.00", "+20.00", "+10.00%"]);
+    expect(banner()).toHaveTextContent("Total value$10,020.00");
+  });
+
+  it("shows why a trade was refused and changes nothing", async () => {
+    await renderLoaded();
+    await submitTrade("500");
+    expect(screen.getByRole("alert")).toHaveTextContent("Not enough cash.");
+    expect(banner()).toHaveTextContent("Cash$10,000.00");
+    expect(screen.getByText("No positions yet")).toBeInTheDocument();
+  });
+
+  it("adds and removes watchlist tickers", async () => {
+    await renderLoaded();
+    const form = within(screen.getByRole("form", { name: "Add to watchlist" }));
+    fireEvent.change(form.getByLabelText("New ticker"), { target: { value: "pypl" } });
+    await act(async () => fireEvent.click(form.getByRole("button", { name: "Add" })));
+    expect(priceCell("PYPL")).toHaveTextContent("65.00");
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Remove AAPL" })));
+    expect(screen.queryByRole("rowheader", { name: "AAPL" })).not.toBeInTheDocument();
   });
 
   it("closes the stream when the page is left", async () => {

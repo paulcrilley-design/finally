@@ -27,3 +27,25 @@ export type WatchlistResponse = { watchlist: WatchlistItem[] };
 export type WatchlistRow = { quote: WatchlistItem; tick?: Tick };
 
 export type StreamStatus = "connected" | "reconnecting" | "disconnected";
+
+// Every price-derived value is null while the price is unknown.
+export type Position = {
+  ticker: string;
+  quantity: number;
+  avg_cost: number;
+  price: number | null;
+  market_value: number | null;
+  unrealized_pnl: number | null;
+  pnl_percent: number | null;
+};
+
+export type Portfolio = { cash: number; total_value: number | null; positions: Position[] };
+
+export type Side = "buy" | "sell";
+
+export type TradeOrder = { ticker: string; side: Side; quantity: number };
+
+export type TradeResponse = {
+  trade: TradeOrder & { price: number };
+  portfolio: Portfolio;
+};
