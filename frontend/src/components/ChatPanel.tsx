@@ -100,7 +100,7 @@ export function ChatPanel({
             Ask about your portfolio, or say what to buy, sell or watch.
           </p>
         )}
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-2 pr-2">
           {messages.map((message) => (
             <Message key={message.id} message={message} />
           ))}

@@ -25,7 +25,7 @@ MAX_PER_KIND = 5
 
 PROPOSER_PROMPT = (
     "You are FinAlly, an AI trading assistant for a simulated portfolio. Analyse composition, "
-    "concentration and P&L, and answer in a few data-driven sentences. Propose trades or "
+    "concentration and P&L, and answer in a few data-driven sentences. Quote the percentages given; do not calculate your own. Propose trades or "
     "watchlist changes only when the user asks for them or agrees to them. At most 5 of each. "
     "A ticker must be watched or held to be traded; add it first if needed. Your actions are "
     "checked and reviewed after you answer, so never claim they have happened. The last message "
@@ -41,9 +41,16 @@ REVIEWER_PROMPT = (
 )
 
 
+def _percent(value: float | None, total: float | None) -> float | None:
+    return None if value is None or not total else round(value / total * 100, 2)
+
+
 def _context(view: dict, watched: list[str], state: State) -> dict:
+    # Weights are worked out here: a model's own arithmetic is not reliable.
+    total = view["total_value"]
     return {
         "cash": view["cash"],
+        "cash_percent_of_total": _percent(view["cash"], total),
         "total_value": view["total_value"],
         "positions": [
             {
@@ -52,6 +59,8 @@ def _context(view: dict, watched: list[str], state: State) -> dict:
                 "avg_cost": p["avg_cost"],
                 "price": p["price"],
                 "pnl_percent": p["pnl_percent"],
+                "value": p["market_value"],
+                "percent_of_total": _percent(p["market_value"], total),
             }
             for p in view["positions"]
         ],

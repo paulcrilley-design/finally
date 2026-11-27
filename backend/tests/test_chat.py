@@ -225,3 +225,14 @@ async def test_reviewer_is_not_retried():
     with pytest.raises(ModelError):
         await client.review(MESSAGES)
     assert len(seen) == 1
+
+
+def test_context_carries_the_weights(client: TestClient, model: FakeModel):
+    say(client, "buy 10 AAPL")
+    say(client, "how concentrated am I?")
+    context = json.loads(model.proposals[-1][-1]["content"])["portfolio"]
+    [held] = context["positions"]
+    assert held["percent_of_total"] == pytest.approx(19, abs=1)
+    assert held["percent_of_total"] + context["cash_percent_of_total"] == pytest.approx(
+        100, abs=0.02
+    )
