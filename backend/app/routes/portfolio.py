@@ -9,11 +9,10 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, StrictFloat, StrictInt
 
-from app.errors import ApiError
 from app.identity import get_current_user
 from app.market import PriceCache, normalize_ticker
-from app.tracking import sync_tracked_tickers
-from db import TradeError, cents, execute_trade, read_portfolio, value_history
+from app.services import place_trade
+from db import cents, read_portfolio, value_history
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 
@@ -77,23 +76,6 @@ async def trade(
     user_id: Annotated[str, Depends(get_current_user)],
 ) -> dict:
     state = request.app.state
-    symbol = normalize_ticker(order.ticker)
-    update = state.price_cache.get(symbol)
-    try:
-        filled = await run_in_threadpool(
-            execute_trade,
-            state.db_path,
-            user_id,
-            symbol,
-            order.side,
-            Decimal(str(order.quantity)),
-            update.price if update else None,
-            update.prev_close if update else None,
-            {t: u.price for t, u in state.price_cache.get_all().items()},
-        )
-    except TradeError as refusal:
-        raise ApiError(refusal.code, refusal.message) from refusal
-    # Value the result first: closing an unwatched position stops its price.
+    filled = await place_trade(state, user_id, order.ticker, order.side, order.quantity)
     view = await run_in_threadpool(portfolio_view, state.db_path, state.price_cache, user_id)
-    await sync_tracked_tickers(state)
     return {"trade": filled, "portfolio": view}

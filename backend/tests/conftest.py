@@ -21,6 +21,8 @@ def app_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     monkeypatch.setenv("FINALLY_DB_PATH", str(db_path))
     monkeypatch.delenv("MASSIVE_API_KEY", raising=False)
     monkeypatch.delenv("FINALLY_STATIC_DIR", raising=False)
+    monkeypatch.setenv("LLM_MOCK", "true")  # tests never call a model
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     return db_path
 
 

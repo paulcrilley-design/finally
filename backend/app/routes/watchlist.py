@@ -8,12 +8,10 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
-from app.errors import ApiError
 from app.identity import get_current_user
-from app.market import MarketDataError, normalize_ticker
-from app.market.interface import is_valid_symbol
-from app.tracking import sync_tracked_tickers
-from db import add_to_watchlist, list_watchlist, remove_from_watchlist
+from app.market import normalize_ticker
+from app.services import unwatch, watch
+from db import list_watchlist
 
 router = APIRouter(prefix="/api", tags=["watchlist"])
 
@@ -54,19 +52,7 @@ async def add_ticker(
     request: Request,
     user_id: Annotated[str, Depends(get_current_user)],
 ) -> dict:
-    state = request.app.state
-    symbol = normalize_ticker(body.ticker)
-    try:
-        valid = is_valid_symbol(symbol) and await state.source.validate_ticker(symbol)
-    except MarketDataError as error:
-        raise ApiError(
-            "ticker_unavailable", "The ticker cannot be checked now. Try again."
-        ) from error
-    if not valid:
-        raise ApiError("invalid_ticker", "That is not a valid ticker symbol.")
-    if not await run_in_threadpool(add_to_watchlist, state.db_path, user_id, symbol):
-        raise ApiError("already_watched", f"{symbol} is already on your watchlist.", 409)
-    await sync_tracked_tickers(state)
+    await watch(request.app.state, user_id, body.ticker)
     return await run_in_threadpool(get_watchlist, request, user_id)
 
 
@@ -76,9 +62,5 @@ async def remove_ticker(
     request: Request,
     user_id: Annotated[str, Depends(get_current_user)],
 ) -> dict:
-    state = request.app.state
-    symbol = normalize_ticker(ticker)
-    if not await run_in_threadpool(remove_from_watchlist, state.db_path, user_id, symbol):
-        raise ApiError("not_watched", f"{symbol} is not on your watchlist.", 404)
-    await sync_tracked_tickers(state)
+    await unwatch(request.app.state, user_id, ticker)
     return await run_in_threadpool(get_watchlist, request, user_id)

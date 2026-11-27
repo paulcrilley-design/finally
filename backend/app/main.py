@@ -14,8 +14,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 
 from app.errors import ApiError, api_error_handler, invalid_request_handler
+from app.llm import create_llm_client
 from app.market import PriceCache, create_stream_router, start_market_data
-from app.routes import health_router, portfolio_router, watchlist_router
+from app.routes import chat_router, health_router, portfolio_router, watchlist_router
 from db import (
     init_db,
     load_prices,
@@ -96,12 +97,15 @@ def create_app(db_path: Path | None = None, static_dir: Path | None = None) -> F
     app = FastAPI(title="FinAlly", lifespan=lifespan)
     app.state.price_cache = cache
     app.state.db_path = db_path
+    app.state.llm = create_llm_client()
+    app.state.chatting = set()
     app.add_exception_handler(ApiError, api_error_handler)
     app.add_exception_handler(RequestValidationError, invalid_request_handler)
     # API routes first: the static mount matches every other path.
     app.include_router(health_router)
     app.include_router(watchlist_router)
     app.include_router(portfolio_router)
+    app.include_router(chat_router)
     app.include_router(create_stream_router(cache))
 
     @app.api_route(
