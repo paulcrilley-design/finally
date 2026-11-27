@@ -14,7 +14,7 @@ export default function Page() {
     <>
       <a
         href="#watchlist"
-        className="sr-only text-sm font-semibold text-brand-teal-ink focus:not-sr-only focus:bg-white focus:px-6 focus:py-3"
+        className="sr-only text-sm font-semibold text-brand-teal-ink focus:not-sr-only focus:bg-white focus:px-6 focus:py-3 focus-visible:-outline-offset-2"
       >
         Skip to watchlist
       </a>
