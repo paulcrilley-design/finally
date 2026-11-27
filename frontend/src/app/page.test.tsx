@@ -126,6 +126,38 @@ describe("Page", () => {
     expect(priceCell("AAPL")).toHaveTextContent("191.50");
   });
 
+  it("shows the logo, name and connection status in the banner", async () => {
+    await renderLoaded();
+    const banner = within(screen.getByRole("banner"));
+    expect(banner.getByRole("img", { name: "openUI" })).toBeInTheDocument();
+    expect(banner.getByText("FinAlly")).toBeInTheDocument();
+    expect(banner.getByRole("status")).toHaveTextContent("Reconnecting");
+  });
+
+  it("starts with a skip link that leads to the watchlist", async () => {
+    const { container } = await renderLoaded();
+    const first = container.querySelector<HTMLElement>("a[href], button, input, [tabindex]");
+    expect(first).toBe(screen.getByRole("link", { name: "Skip to watchlist" }));
+    expect(first).toHaveAttribute("href", "#watchlist");
+    const target = container.querySelector<HTMLElement>("#watchlist")!;
+    target.focus();
+    expect(target).toHaveFocus();
+  });
+
+  it("has one main landmark, heading and table, and the simulation notice", async () => {
+    await renderLoaded();
+    expect(screen.getAllByRole("main")).toHaveLength(1);
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Watchlist");
+    expect(screen.getByRole("table", { name: "Watchlist" })).toBeInTheDocument();
+    expect(screen.getByRole("contentinfo")).toHaveTextContent(/simulated/);
+  });
+
+  it("shows nothing about features that do not exist yet", async () => {
+    await renderLoaded();
+    expect(screen.queryByText(/cash|total value/i)).not.toBeInTheDocument();
+  });
+
   it("closes the stream when the page is left", async () => {
     const { source, unmount } = await renderLoaded();
     expect(source.readyState).not.toBe(FakeEventSource.CLOSED);
