@@ -1,6 +1,6 @@
 # Market Data Backend — Summary
 
-**Status (2026-11-27):** The simulator, price cache and SSE stream are in use by the app. The Massive (real data) review findings are fixed, but **that path has never run against the live service**: try it with a real key before relying on it. History is in `archive/MARKET_DATA_REVIEW.md`. Code listings in `archive/MARKET_DATA_DESIGN.md` predate the fixes.
+**Status (2026-11-27):** The simulator, price cache and SSE stream are in use by the app. The Massive (real data) review findings are fixed, but **that path has never run against the live service**: try it with a real key before relying on it. History is in `archive/MARKET_DATA_REVIEW.md`. The design is in `archive/MARKET_DATA_DESIGN.md`.
 
 ## What Was Built
 
