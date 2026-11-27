@@ -104,9 +104,9 @@ Until commit `bd50099` (17:45) gave it its own Docker names, `finally-gsd` used 
   across branches. Check `/hooks` for leftover GSD entries.
 - **`finally-gsd` image and `finally-gsd-data` volume** were left. They are separate. That app also defaults
   to port 8000, so run one at a time.
-- **Frontend test tools** (Vitest, tinypool) have known vulnerabilities. Development only; the fix is a major
-  upgrade.
-- **Node 20** in the `Dockerfile` has reached end of life.
+
+Upgraded afterwards (2026-11-27): frontend test tools (Vitest 5.1.2, jsdom 31, npm audit clean) and the
+`Dockerfile` build image (Node 26). All backend, frontend and browser tests passed again.
 
 ## Using GSD again
 

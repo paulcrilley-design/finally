@@ -1,5 +1,5 @@
 # Stage 1: build the Next.js static export
-FROM node:20-slim AS frontend
+FROM node:26-slim AS frontend
 WORKDIR /build
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY frontend/package.json frontend/package-lock.json ./
