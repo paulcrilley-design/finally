@@ -1,6 +1,6 @@
 # Phase 2: Trading and Positions (short plan, built without GSD)
 
-Status: awaiting owner approval. Requirements: TRADE-01 to 04, PORT-01, PORT-02, WATCH-05, WATCH-06.
+Status: approved and built (see 02-SUMMARY.md). Requirements: TRADE-01 to 04, PORT-01, PORT-02, WATCH-05, WATCH-06.
 
 ## Rules
 

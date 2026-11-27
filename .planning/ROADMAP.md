@@ -13,7 +13,7 @@ Only the market data subsystem exists today. Five vertical slices turn it into t
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Live Market Terminal** - Open the app in a browser and watch the default watchlist stream live prices
-- [ ] **Phase 2: Trading and Positions** - Buy and sell at market price, manage the watchlist, and see correct cash, positions and P&L
+- [x] **Phase 2: Trading and Positions** - Buy and sell at market price, manage the watchlist, and see correct cash, positions and P&L
 - [ ] **Phase 3: Price and Portfolio Charts** - Sparklines, ticker chart, portfolio heatmap and value-over-time chart
 - [ ] **Phase 4: AI Copilot** - Chat that analyses the portfolio and executes reviewed trades and watchlist changes
 - [ ] **Phase 5: One-Command Run and Release** - One script starts the container, data persists, layout adapts and all tests pass
@@ -82,7 +82,7 @@ Plans:
 
 **Decide in discussion**: trade validation, precision and rounding rules; standard error response shape; portfolio and watchlist API contracts; how to handle the P&L jump when simulator prices reset on restart
 **Notes**: Call `normalize_ticker()` before any cache lookup, reject a trade with no price, and call `reconcile_tickers` after watchlist or trade changes
-**Plans**: TBD
+**Plans**: 1 (`.planning/phases/02-trading-and-positions/02-PLAN.md`)
 **UI hint**: yes
 
 ### Phase 3: Price and Portfolio Charts
@@ -143,7 +143,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Live Market Terminal | 11/11 | Complete | 2026-11-27 |
-| 2. Trading and Positions | 0/TBD | Not started | - |
+| 2. Trading and Positions | 1/1 | Complete | 2026-11-27 |
 | 3. Price and Portfolio Charts | 0/TBD | Not started | - |
 | 4. AI Copilot | 0/TBD | Not started | - |
 | 5. One-Command Run and Release | 0/TBD | Not started | - |

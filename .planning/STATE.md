@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 02
-current_phase_name: Trading and Positions
+current_phase: 03
+current_phase_name: Price and Portfolio Charts
 status: planning
-stopped_at: Phase 1 complete
+stopped_at: Phase 2 complete
 last_updated: "2026-11-27T08:39:31.704Z"
 last_activity: 2026-11-27
-last_activity_desc: Phase 1 built and checked outside GSD
+last_activity_desc: Phase 2 built and checked outside GSD
 state_head: 4c4758714542fe175f5b5bdd4841b8c331885f40
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 11
-  completed_plans: 11
-  percent: 20
+  completed_phases: 2
+  total_plans: 12
+  completed_plans: 12
+  percent: 40
 ---
 
 # Project State
@@ -23,22 +23,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-27)
 
 **Core value:** The trading terminal works: prices stream live, buys and sells fill correctly, and the portfolio, cash and P&L numbers are right.
-**Current focus:** Phase 2: Trading and Positions
+**Current focus:** Phase 3: Price and Portfolio Charts
 
 ## Current Position
 
-Phase: 02 (Trading and Positions) — NOT PLANNED
+Phase: 03 (Price and Portfolio Charts) — NOT PLANNED
 Plan: none yet
 Status: Ready to discuss and plan
-Last activity: 2026-11-27 — Phase 1 complete (11/11 plans), built without GSD; owner accepted the
-end-of-phase checks. No GSD verification report was produced.
+Last activity: 2026-11-27 — Phases 1 and 2 built without GSD and checked in a browser. No GSD
+verification reports were produced.
 
-Progress: [██░░░░░░░░] 20%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: -
 - Total execution time: 0 hours
 
@@ -73,7 +73,6 @@ None yet.
 ### Blockers/Concerns
 
 - [All]: Run uvicorn with `--timeout-graceful-shutdown 3`, or an open price stream blocks shutdown
-- [Phase 2]: Simulator prices reset on restart, which shows as a P&L jump on saved positions
 
 ## Deferred Items
 
@@ -86,5 +85,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-11-27
-Stopped at: Phase 1 complete
+Stopped at: Phase 2 complete
 Resume file: None

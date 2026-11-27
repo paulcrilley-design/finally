@@ -23,21 +23,21 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **WATCH-02**: User sees a fading flash and ▲/▼ arrow when a price changes
 - [ ] **WATCH-03**: User can see a sparkline per ticker, built up since page load
 - [ ] **WATCH-04**: User can click a ticker to see its larger price chart
-- [ ] **WATCH-05**: User can add a ticker
-- [ ] **WATCH-06**: User can remove a ticker; one with an open position keeps being priced
+- [x] **WATCH-05**: User can add a ticker
+- [x] **WATCH-06**: User can remove a ticker; one with an open position keeps being priced
 - [x] **WATCH-07**: User can see connection status (connected, reconnecting, disconnected), and the stream reconnects by itself
 
 ### Trading
 
-- [ ] **TRADE-01**: User can buy shares, including fractions, at the current price
-- [ ] **TRADE-02**: User can sell shares they own at the current price
-- [ ] **TRADE-03**: User sees why a trade was rejected (invalid quantity, not enough cash or shares, no price)
-- [ ] **TRADE-04**: Every executed trade is recorded in a trade history log
+- [x] **TRADE-01**: User can buy shares, including fractions, at the current price
+- [x] **TRADE-02**: User can sell shares they own at the current price
+- [x] **TRADE-03**: User sees why a trade was rejected (invalid quantity, not enough cash or shares, no price)
+- [x] **TRADE-04**: Every executed trade is recorded in a trade history log
 
 ### Portfolio
 
-- [ ] **PORT-01**: User can see total value and cash in the header, updating live
-- [ ] **PORT-02**: User can see a positions table: quantity, average cost, price, unrealised P&L, % change
+- [x] **PORT-01**: User can see total value and cash in the header, updating live
+- [x] **PORT-02**: User can see a positions table: quantity, average cost, price, unrealised P&L, % change
 - [ ] **PORT-03**: User can see a heatmap of positions sized by weight and coloured by P&L
 - [ ] **PORT-04**: User can see a chart of total portfolio value over time, recorded every 30 seconds and after each trade
 
@@ -108,15 +108,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WATCH-02 | Phase 1 | Complete |
 | WATCH-03 | Phase 3 | Pending |
 | WATCH-04 | Phase 3 | Pending |
-| WATCH-05 | Phase 2 | Pending |
-| WATCH-06 | Phase 2 | Pending |
+| WATCH-05 | Phase 2 | Complete |
+| WATCH-06 | Phase 2 | Complete |
 | WATCH-07 | Phase 1 | Complete |
-| TRADE-01 | Phase 2 | Pending |
-| TRADE-02 | Phase 2 | Pending |
-| TRADE-03 | Phase 2 | Pending |
-| TRADE-04 | Phase 2 | Pending |
-| PORT-01 | Phase 2 | Pending |
-| PORT-02 | Phase 2 | Pending |
+| TRADE-01 | Phase 2 | Complete |
+| TRADE-02 | Phase 2 | Complete |
+| TRADE-03 | Phase 2 | Complete |
+| TRADE-04 | Phase 2 | Complete |
+| PORT-01 | Phase 2 | Complete |
+| PORT-02 | Phase 2 | Complete |
 | PORT-03 | Phase 3 | Pending |
 | PORT-04 | Phase 3 | Pending |
 | CHAT-01 | Phase 4 | Pending |
