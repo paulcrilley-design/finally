@@ -12,7 +12,7 @@ Only the market data subsystem exists today. Five vertical slices turn it into t
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Live Market Terminal** - Open the app in a browser and watch the default watchlist stream live prices
+- [x] **Phase 1: Live Market Terminal** - Open the app in a browser and watch the default watchlist stream live prices
 - [ ] **Phase 2: Trading and Positions** - Buy and sell at market price, manage the watchlist, and see correct cash, positions and P&L
 - [ ] **Phase 3: Price and Portfolio Charts** - Sparklines, ticker chart, portfolio heatmap and value-over-time chart
 - [ ] **Phase 4: AI Copilot** - Chat that analyses the portfolio and executes reviewed trades and watchlist changes
@@ -40,31 +40,31 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 **Wave 1**
-- [ ] 01-01-PLAN.md — Owner approval of the flagged packages and ignore rules before any install (wave 1)
+- [x] 01-01-PLAN.md — Owner approval of the flagged packages and ignore rules before any install (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-02-PLAN.md — Walking skeleton tracer: seeded database to live prices on the served page (wave 2)
+- [x] 01-02-PLAN.md — Walking skeleton tracer: seeded database to live prices on the served page (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 01-11-PLAN.md — Stored watchlist API, single identity and watchlist order on the page (wave 3)
+- [x] 01-11-PLAN.md — Stored watchlist API, single identity and watchlist order on the page (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 01-03-PLAN.md — Data guarantees under test, env loading and the run command (wave 4)
-- [ ] 01-04-PLAN.md — Frontend tests and lint around the live page (wave 4)
+- [x] 01-03-PLAN.md — Data guarantees under test, env loading and the run command (wave 4)
+- [x] 01-04-PLAN.md — Frontend tests and lint around the live page (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 01-05-PLAN.md — Health endpoint and clean shutdown with a stream open (wave 5)
-- [ ] 01-06-PLAN.md — openUI colours, fonts and the watchlist in its own modules (wave 5)
+- [x] 01-05-PLAN.md — Health endpoint and clean shutdown with a stream open (wave 5)
+- [x] 01-06-PLAN.md — openUI colours, fonts and the watchlist in its own modules (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 01-07-PLAN.md — Daily change, price flash and arrow (wave 6)
-- [ ] 01-08-PLAN.md — openUI brand files, shared components, header and footer (wave 6)
+- [x] 01-07-PLAN.md — Daily change, price flash and arrow (wave 6)
+- [x] 01-08-PLAN.md — openUI brand files, shared components, header and footer (wave 6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 01-09-PLAN.md — Connection status and reconnect (wave 7)
+- [x] 01-09-PLAN.md — Connection status and reconnect (wave 7)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 01-10-PLAN.md — openUI page layout, accessibility, README and end-of-phase checks (wave 8)
+- [x] 01-10-PLAN.md — openUI page layout, accessibility, README and end-of-phase checks (wave 8)
 
 **UI hint**: yes
 
@@ -142,7 +142,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Live Market Terminal | 0/TBD | Not started | - |
+| 1. Live Market Terminal | 11/11 | Complete | 2026-11-27 |
 | 2. Trading and Positions | 0/TBD | Not started | - |
 | 3. Price and Portfolio Charts | 0/TBD | Not started | - |
 | 4. AI Copilot | 0/TBD | Not started | - |

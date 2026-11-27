@@ -11,21 +11,21 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Platform and Data
 
-- [ ] **APP-01**: User can open `http://localhost:8000` with no login and get the app, with the pages and API served by one process
-- [ ] **APP-02**: A health endpoint reports whether the app and market data are working
-- [ ] **APP-03**: A fresh start creates the database with $10,000 cash and the 10 default tickers
+- [x] **APP-01**: User can open `http://localhost:8000` with no login and get the app, with the pages and API served by one process
+- [x] **APP-02**: A health endpoint reports whether the app and market data are working
+- [x] **APP-03**: A fresh start creates the database with $10,000 cash and the 10 default tickers
 - [ ] **APP-04**: Cash, positions, watchlist, trades and chat survive a restart
-- [ ] **APP-05**: User identity comes from one function and every user-owned record carries `user_id`
+- [x] **APP-05**: User identity comes from one function and every user-owned record carries `user_id`
 
 ### Watchlist and Market View
 
-- [ ] **WATCH-01**: User can see watched tickers with live price and daily change %
-- [ ] **WATCH-02**: User sees a fading flash and ▲/▼ arrow when a price changes
+- [x] **WATCH-01**: User can see watched tickers with live price and daily change %
+- [x] **WATCH-02**: User sees a fading flash and ▲/▼ arrow when a price changes
 - [ ] **WATCH-03**: User can see a sparkline per ticker, built up since page load
 - [ ] **WATCH-04**: User can click a ticker to see its larger price chart
 - [ ] **WATCH-05**: User can add a ticker
 - [ ] **WATCH-06**: User can remove a ticker; one with an open position keeps being priced
-- [ ] **WATCH-07**: User can see connection status (connected, reconnecting, disconnected), and the stream reconnects by itself
+- [x] **WATCH-07**: User can see connection status (connected, reconnecting, disconnected), and the stream reconnects by itself
 
 ### Trading
 
@@ -55,15 +55,15 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Look and Feel
 
-- [ ] **UI-01**: The app follows `planning/OUI_FORMAT.md`: logo, colours, fonts, components, header and footer
+- [x] **UI-01**: The app follows `planning/OUI_FORMAT.md`: logo, colours, fonts, components, header and footer
 - [ ] **UI-02**: The layout is desktop-first and remains usable on tablet and phone widths
-- [ ] **UI-03**: Direction and status are never shown by colour alone, and the app has AA contrast and visible focus
+- [x] **UI-03**: Direction and status are never shown by colour alone, and the app has AA contrast and visible focus
 
 ### Run and Ship
 
 - [ ] **OPS-01**: One multi-stage Docker image runs the whole app on port 8000, with data kept on a volume
 - [ ] **OPS-02**: User can start and stop it with idempotent macOS/Linux scripts
-- [ ] **OPS-03**: Stopping the app completes cleanly even with price streams open
+- [x] **OPS-03**: Stopping the app completes cleanly even with price streams open
 
 ### Testing
 
@@ -99,18 +99,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| APP-01 | Phase 1 | Pending |
-| APP-02 | Phase 1 | Pending |
-| APP-03 | Phase 1 | Pending |
+| APP-01 | Phase 1 | Complete |
+| APP-02 | Phase 1 | Complete |
+| APP-03 | Phase 1 | Complete |
 | APP-04 | Phase 5 | Pending |
-| APP-05 | Phase 1 | Pending |
-| WATCH-01 | Phase 1 | Pending |
-| WATCH-02 | Phase 1 | Pending |
+| APP-05 | Phase 1 | Complete |
+| WATCH-01 | Phase 1 | Complete |
+| WATCH-02 | Phase 1 | Complete |
 | WATCH-03 | Phase 3 | Pending |
 | WATCH-04 | Phase 3 | Pending |
 | WATCH-05 | Phase 2 | Pending |
 | WATCH-06 | Phase 2 | Pending |
-| WATCH-07 | Phase 1 | Pending |
+| WATCH-07 | Phase 1 | Complete |
 | TRADE-01 | Phase 2 | Pending |
 | TRADE-02 | Phase 2 | Pending |
 | TRADE-03 | Phase 2 | Pending |
@@ -128,12 +128,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CHAT-07 | Phase 4 | Pending |
 | CHAT-08 | Phase 4 | Pending |
 | CHAT-09 | Phase 4 | Pending |
-| UI-01 | Phase 1 | Pending |
+| UI-01 | Phase 1 | Complete |
 | UI-02 | Phase 5 | Pending |
-| UI-03 | Phase 1 | Pending |
+| UI-03 | Phase 1 | Complete |
 | OPS-01 | Phase 5 | Pending |
 | OPS-02 | Phase 5 | Pending |
-| OPS-03 | Phase 1 | Pending |
+| OPS-03 | Phase 1 | Complete |
 | TEST-01 | Phase 5 | Pending |
 | TEST-02 | Phase 5 | Pending |
 | TEST-03 | Phase 5 | Pending |
