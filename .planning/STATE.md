@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 05
-current_phase_name: One-Command Run and Release
-status: complete
+status: Awaiting next milestone
 stopped_at: Phase 5 complete
-last_updated: "2026-11-27T08:39:31.704Z"
+last_updated: "2026-11-27T10:54:15.420Z"
 last_activity: 2026-11-27
-last_activity_desc: Phase 5 built and checked outside GSD
-state_head: 4c4758714542fe175f5b5bdd4841b8c331885f40
+last_activity_desc: Milestone v1.0 completed and archived
+state_head: bd5009938ce10f8ba5ae681e36bcd7ce17e347f0
 progress:
   total_phases: 5
   completed_phases: 5
   total_plans: 15
   completed_plans: 15
   percent: 100
+current_phase: 05
+current_phase_name: One-Command Run and Release
 ---
 
 # Project State
@@ -23,17 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-27)
 
 **Core value:** The trading terminal works: prices stream live, buys and sells fill correctly, and the portfolio, cash and P&L numbers are right.
-**Current focus:** All five phases built
+**Current focus:** v1.0 shipped; no next milestone planned
 
 ## Current Position
 
-Phase: 05 (One-Command Run and Release) — COMPLETE
-Plan: 05-PLAN.md
-Status: All phases complete
-Last activity: 2026-11-27 — Phases 1 to 5 built without GSD and checked in a browser. No GSD
-verification reports were produced.
-
-Progress: [██████████] 100%
+Phase: Milestone v1.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-11-27 — Milestone v1.0 completed and archived
 
 ## Performance Metrics
 
@@ -80,10 +77,19 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 | Category | Item | Status | Deferred At | Milestone |
 |----------|------|--------|-------------|-----------|
-| *(none)* | | | | |
+| verification | Phase 1: no GSD verification report | acknowledged | 2026-11-27 | v1.0 |
+| verification | Phase 2: no GSD verification report | acknowledged | 2026-11-27 | v1.0 |
+| verification | Phase 3: no GSD verification report | acknowledged | 2026-11-27 | v1.0 |
+| verification | Phase 4: no GSD verification report | acknowledged | 2026-11-27 | v1.0 |
+| verification | Phase 5: no GSD verification report | acknowledged | 2026-11-27 | v1.0 |
+| audit | No milestone audit run | acknowledged | 2026-11-27 | v1.0 |
 
 ## Session Continuity
 
 Last session: 2026-11-27
 Stopped at: Phase 5 complete
 Resume file: None
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

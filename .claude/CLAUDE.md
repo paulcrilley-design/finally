@@ -6,7 +6,7 @@ Core value: prices stream, trades fill correctly, and portfolio, cash and P&L nu
 ## Where the detail is (read on demand)
 
 - Project, constraints, decisions: `.planning/PROJECT.md`
-- Requirements, phases, status: `.planning/REQUIREMENTS.md`, `ROADMAP.md`, `STATE.md`
+- Status: `.planning/STATE.md`, `ROADMAP.md`; v1.0 requirements and phases: `.planning/milestones/`
 - Stack, conventions, architecture, testing, concerns: `.planning/codebase/*.md`
 - LLM calls: `.claude/skills/cerebras/SKILL.md`
 
