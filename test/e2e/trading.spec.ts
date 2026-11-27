@@ -22,7 +22,6 @@ test("buying lowers cash, opens a position and updates the portfolio", async ({ 
   }).toPass();
 
   // A second buy adds to the same position.
-  const afterFirst = await amount(page, "header-cash");
   const second = await trade(page, "buy", "AAPL", 2);
   await expect(page.getByTestId("position-quantity-AAPL")).toHaveText("7");
   await expect.poll(() => amount(page, "header-cash")).toBe(cents(cash - cents(2 * second)));
@@ -47,6 +46,7 @@ test("selling raises cash, then updates and removes the position", async ({ page
   await cashAbout(cents(afterBuy + cents(1.5 * first)));
   await expect(page.getByTestId("position-quantity-MSFT")).toHaveText("2.5");
 
+  const afterFirst = await amount(page, "header-cash");
   const second = await trade(page, "sell", "MSFT", 2.5);
   await cashAbout(cents(afterFirst + cents(2.5 * second)));
   await expect(page.getByTestId("position-row-MSFT")).toHaveCount(0);
