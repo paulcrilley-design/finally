@@ -114,6 +114,18 @@ describe("Page", () => {
     expect(priceCell("AAPL")).toHaveTextContent("100.00");
   });
 
+  it("shows the connection state while keeping the last prices", async () => {
+    const { source } = await renderLoaded();
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Reconnecting");
+    await act(async () => source.emitOpen());
+    expect(status).toHaveTextContent("Connected");
+    act(() => source.emitMessage(JSON.stringify({ AAPL: { price: 191.5 } })));
+    act(() => source.emitError(FakeEventSource.CLOSED));
+    expect(status).toHaveTextContent("Disconnected");
+    expect(priceCell("AAPL")).toHaveTextContent("191.50");
+  });
+
   it("closes the stream when the page is left", async () => {
     const { source, unmount } = await renderLoaded();
     expect(source.readyState).not.toBe(FakeEventSource.CLOSED);
