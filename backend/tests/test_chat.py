@@ -236,3 +236,25 @@ def test_context_carries_the_weights(client: TestClient, model: FakeModel):
     assert held["percent_of_total"] + context["cash_percent_of_total"] == pytest.approx(
         100, abs=0.02
     )
+
+
+def test_watchlist_changes_that_cannot_work_are_not_reviewed(
+    client: TestClient, model: FakeModel
+):
+    reply = say(client, "add AAPL, remove PYPL, add 123 and sell 0.00001 V")
+    assert set(statuses(reply)) == {"rejected"}
+    assert model.reviews == []
+    assert all(action["reason"] for action in reply["actions"])
+
+
+def test_one_failed_action_does_not_stop_the_others(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    async def broken(*args):
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr("app.chat.watch", broken)
+    reply = say(client, "add PYPL and buy 1 V")
+    assert statuses(reply) == ["rejected", "executed"]
+    assert reply["actions"][0]["reason"] == "It could not be executed."
+    assert portfolio(client)["positions"][0]["ticker"] == "V"

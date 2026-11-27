@@ -14,7 +14,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **APP-01**: User can open `http://localhost:8000` with no login and get the app, with the pages and API served by one process
 - [x] **APP-02**: A health endpoint reports whether the app and market data are working
 - [x] **APP-03**: A fresh start creates the database with $10,000 cash and the 10 default tickers
-- [ ] **APP-04**: Cash, positions, watchlist, trades and chat survive a restart
+- [x] **APP-04**: Cash, positions, watchlist, trades and chat survive a restart
 - [x] **APP-05**: User identity comes from one function and every user-owned record carries `user_id`
 
 ### Watchlist and Market View
@@ -56,20 +56,20 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Look and Feel
 
 - [x] **UI-01**: The app follows `planning/OUI_FORMAT.md`: logo, colours, fonts, components, header and footer
-- [ ] **UI-02**: The layout is desktop-first and remains usable on tablet and phone widths
+- [x] **UI-02**: The layout is desktop-first and remains usable on tablet and phone widths
 - [x] **UI-03**: Direction and status are never shown by colour alone, and the app has AA contrast and visible focus
 
 ### Run and Ship
 
-- [ ] **OPS-01**: One multi-stage Docker image runs the whole app on port 8000, with data kept on a volume
-- [ ] **OPS-02**: User can start and stop it with idempotent macOS/Linux scripts
+- [x] **OPS-01**: One multi-stage Docker image runs the whole app on port 8000, with data kept on a volume
+- [x] **OPS-02**: User can start and stop it with idempotent macOS/Linux scripts
 - [x] **OPS-03**: Stopping the app completes cleanly even with price streams open
 
 ### Testing
 
-- [ ] **TEST-01**: Backend unit tests cover portfolio and trade logic, LLM parsing and review, and API routes
-- [ ] **TEST-02**: Frontend unit tests cover price flash, watchlist, portfolio calculations and chat
-- [ ] **TEST-03**: Playwright tests cover the `planning/PLAN.md` section 12 scenarios against the container in mock mode
+- [x] **TEST-01**: Backend unit tests cover portfolio and trade logic, LLM parsing and review, and API routes
+- [x] **TEST-02**: Frontend unit tests cover price flash, watchlist, portfolio calculations and chat
+- [x] **TEST-03**: Playwright tests cover the `planning/PLAN.md` section 12 scenarios against the container in mock mode
 
 ## v2 Requirements
 
@@ -102,7 +102,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | APP-01 | Phase 1 | Complete |
 | APP-02 | Phase 1 | Complete |
 | APP-03 | Phase 1 | Complete |
-| APP-04 | Phase 5 | Pending |
+| APP-04 | Phase 5 | Complete |
 | APP-05 | Phase 1 | Complete |
 | WATCH-01 | Phase 1 | Complete |
 | WATCH-02 | Phase 1 | Complete |
@@ -129,14 +129,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CHAT-08 | Phase 4 | Complete |
 | CHAT-09 | Phase 4 | Complete |
 | UI-01 | Phase 1 | Complete |
-| UI-02 | Phase 5 | Pending |
+| UI-02 | Phase 5 | Complete |
 | UI-03 | Phase 1 | Complete |
-| OPS-01 | Phase 5 | Pending |
-| OPS-02 | Phase 5 | Pending |
+| OPS-01 | Phase 5 | Complete |
+| OPS-02 | Phase 5 | Complete |
 | OPS-03 | Phase 1 | Complete |
-| TEST-01 | Phase 5 | Pending |
-| TEST-02 | Phase 5 | Pending |
-| TEST-03 | Phase 5 | Pending |
+| TEST-01 | Phase 5 | Complete |
+| TEST-02 | Phase 5 | Complete |
+| TEST-03 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 38 total

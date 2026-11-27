@@ -20,6 +20,22 @@ One Docker container, one port (8000):
 - **Market data:** built-in GBM simulator by default; Massive (Polygon.io) REST polling if `MASSIVE_API_KEY` is set
 - **LLM:** OpenRouter over HTTP → Cerebras (`gpt-oss-120b`) with structured outputs
 
+## Run
+
+With Docker Desktop (or Docker Engine) running, from the repository root:
+
+```bash
+scripts/start_mac.sh          # macOS/Linux; add --open to open the browser
+scripts/stop_mac.sh
+```
+
+The app is then at <http://localhost:8000>, reachable from this machine only. Both scripts are safe to run twice.
+
+- The first start builds the image. After changing code, run `scripts/start_mac.sh --build`.
+- Cash, positions, watchlist, trades and chat are kept in the Docker volume `finally-data`, which stopping does not remove. It is separate from `db/finally.db`, used when running without Docker.
+- `.env` is mounted read-only into the container, never built into the image. Restart after editing it. On Linux it must be readable by user ID 1000.
+- If port 8000 is busy the script says so. `FINALLY_PORT` picks another; `FINALLY_CONTAINER`, `FINALLY_VOLUME`, `FINALLY_IMAGE` and `FINALLY_ENV_FILE` override the other defaults.
+
 ## Configuration
 
 Create a `.env` in the project root:
@@ -38,13 +54,13 @@ LLM_MOCK=false                # true = deterministic mock LLM (testing, no netwo
 | Market data: Massive (real prices) | Not ready — open defects and untested against the live service, so leave `MASSIVE_API_KEY` empty |
 | App server, database, health, watchlist, portfolio and trading APIs | Complete |
 | AI chat with second-model review | Complete |
-| Frontend | Complete for desktop; phone and tablet layout pass planned |
-| Docker and start/stop scripts | Planned |
-| Playwright E2E tests | Planned |
+| Frontend (desktop first; usable on tablet and phone) | Complete |
+| Docker and start/stop scripts | Complete (macOS/Linux) |
+| Playwright E2E tests | Complete |
 
 ## Development
 
-Run the app (from the repository root):
+Run without Docker (from the repository root):
 
 ```bash
 cd frontend && npm install && npm run build
@@ -73,7 +89,15 @@ uv run --extra dev ruff check .
 uv run --extra dev market_data_demo.py   # market data demo
 ```
 
-Once the Docker build lands, the app will run with `scripts/start_mac.sh` and be served at <http://localhost:8000>.
+End to end (from `test/`; needs Docker):
+
+```bash
+npm ci
+npx playwright install chromium      # first time only
+npm test
+```
+
+The tests rebuild the image and run it in mock mode on port 8765 (`E2E_PORT` changes it), with their own container and a volume that is deleted afterwards.
 
 ## Documentation
 

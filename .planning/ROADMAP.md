@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Trading and Positions** - Buy and sell at market price, manage the watchlist, and see correct cash, positions and P&L
 - [x] **Phase 3: Price and Portfolio Charts** - Sparklines, ticker chart, portfolio heatmap and value-over-time chart
 - [x] **Phase 4: AI Copilot** - Chat that analyses the portfolio and executes reviewed trades and watchlist changes
-- [ ] **Phase 5: One-Command Run and Release** - One script starts the container, data persists, layout adapts and all tests pass
+- [x] **Phase 5: One-Command Run and Release** - One script starts the container, data persists, layout adapts and all tests pass
 
 **Testing across phases:** every phase writes unit tests for what it builds. TEST-01 and TEST-02 are closed in Phase 5, once the logic they cover all exists.
 
@@ -132,7 +132,7 @@ Plans:
 
 **Decide in discussion**: how the container gets `.env`; named volume or bind mount; start-script behaviour when port 8000 is busy and whether it opens the browser
 **Notes**: `test/` has no `package.json`, so the Playwright setup starts fresh
-**Plans**: TBD
+**Plans**: 1 (05-PLAN.md, built without GSD)
 **UI hint**: yes
 
 ## Progress
@@ -146,4 +146,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Trading and Positions | 1/1 | Complete | 2026-11-27 |
 | 3. Price and Portfolio Charts | 1/1 | Complete | 2026-11-27 |
 | 4. AI Copilot | 1/1 | Complete | 2026-11-27 |
-| 5. One-Command Run and Release | 0/TBD | Not started | - |
+| 5. One-Command Run and Release | 1/1 | Complete | 2026-11-27 |

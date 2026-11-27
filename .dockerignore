@@ -1,0 +1,20 @@
+# Only the two source folders reach the build. Secrets and the database never do.
+*
+!backend
+!frontend
+
+**/.env
+**/.env.*
+**/*.db
+**/*.db-*
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/.coverage
+frontend/.next
+frontend/out
+frontend/next-env.d.ts
+frontend/tsconfig.tsbuildinfo
+backend/tests

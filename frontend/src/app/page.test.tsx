@@ -120,6 +120,19 @@ describe("Page", () => {
     expect(priceCell("GOOGL")).toHaveTextContent("101.00");
   });
 
+  it("flashes a price when the stream moves it", async () => {
+    const { source, container } = await renderLoaded();
+    const send = (price: number, timestamp: number) =>
+      act(() => source.emitMessage(JSON.stringify({ AAPL: { price, timestamp } })));
+    send(100, 1);
+    expect(container.querySelector(".flash-up, .flash-down")).toBeNull();
+    send(101, 2);
+    expect(priceCell("AAPL").querySelector(".flash-up")).toHaveTextContent("101.00");
+    send(99, 3);
+    expect(priceCell("AAPL").querySelector(".flash-down")).toHaveTextContent("99.00");
+    expect(priceCell("GOOGL").querySelector(".flash-up, .flash-down")).toBeNull();
+  });
+
   it("keeps every row unchanged on a malformed stream message", async () => {
     const { source } = await renderLoaded();
     act(() => source.emitMessage(JSON.stringify({ AAPL: { price: 191.5 } })));
@@ -245,6 +258,24 @@ describe("Page", () => {
     expect(priceCell("PYPL")).toHaveTextContent("65.00");
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Remove AAPL" })));
     expect(screen.queryByRole("rowheader", { name: "AAPL" })).not.toBeInTheDocument();
+  });
+
+  it("shows why a ticker could not be added or removed", async () => {
+    await renderLoaded();
+    const refuse = (message: string) =>
+      vi.fn(async () => Response.json({ error: { code: "refused", message } }, { status: 400 }));
+    const form = within(screen.getByRole("form", { name: "Add to watchlist" }));
+
+    vi.stubGlobal("fetch", refuse("Already watched."));
+    fireEvent.change(form.getByLabelText("New ticker"), { target: { value: "aapl" } });
+    await act(async () => fireEvent.click(form.getByRole("button", { name: "Add" })));
+    expect(screen.getByRole("alert")).toHaveTextContent("Already watched.");
+    expect(form.getByLabelText("New ticker")).toHaveValue("aapl");
+
+    vi.stubGlobal("fetch", refuse("Cannot remove that."));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Remove MSFT" })));
+    expect(screen.getByText("Cannot remove that.")).toHaveAttribute("role", "alert");
+    expect(priceCell("MSFT")).toBeInTheDocument();
   });
 
   it("charts the first ticker, then the one clicked, and the first again if removed", async () => {
