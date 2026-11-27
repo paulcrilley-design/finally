@@ -1,4 +1,4 @@
-import type { ChatResponse, Portfolio, Side, Snapshot, Trade, WatchlistItem } from "./types";
+import type { ChatResponse, Portfolio, Side, Snapshot, StoredChatMessage, Trade, WatchlistItem } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -38,6 +38,7 @@ export const api = {
   watchlist: () => request<{ tickers: WatchlistItem[] }>("/api/watchlist"),
   addTicker: (ticker: string) => request<WatchlistItem>("/api/watchlist", "POST", { ticker }),
   removeTicker: (ticker: string) => request<void>(`/api/watchlist/${encodeURIComponent(ticker)}`, "DELETE"),
+  chatHistory: () => request<{ messages: StoredChatMessage[] }>("/api/chat/history"),
   chat: (message: string) => request<ChatResponse>("/api/chat", "POST", { message }),
 };
 

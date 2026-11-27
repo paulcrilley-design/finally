@@ -17,6 +17,7 @@ describe("format", () => {
 
   it("classifies P&L", () => {
     expect([pnlState(1), pnlState(-1), pnlState(0.001), pnlState(null)]).toEqual(["profit", "loss", "flat", "flat"]);
+    expect([pnlState(-0.005), pnlState(-0.006)]).toEqual(["flat", "loss"]);
   });
 });
 

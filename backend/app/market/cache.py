@@ -26,18 +26,20 @@ class PriceCache:
         price: float,
         timestamp: float | None = None,
         prev_close: float | None = None,
+        clear_prev_close: bool = False,
     ) -> PriceUpdate:
         """Record a new price for a ticker. Returns the created PriceUpdate.
 
         Direction and tick change are computed against the cached price. The first
         update for a ticker has previous_price == price (direction 'flat').
-        `prev_close` is sticky: if omitted, the value already cached is kept.
+        `prev_close` is sticky: if omitted, the value already cached is kept, unless
+        `clear_prev_close` says the baseline is now unknown.
         """
         with self._lock:
             ts = timestamp or time.time()
             prev = self._prices.get(ticker)
             previous_price = prev.price if prev else price
-            if prev_close is None and prev is not None:
+            if prev_close is None and prev is not None and not clear_prev_close:
                 prev_close = prev.prev_close
 
             update = PriceUpdate(

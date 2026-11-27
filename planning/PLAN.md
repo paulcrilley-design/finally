@@ -297,6 +297,7 @@ All user-owned tables include a `user_id` column defaulting to `"default"`. Only
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/chat` | Send a message, receive complete JSON response (message + executed actions) |
+| GET | `/api/chat/history` | Stored messages, so the conversation survives a page reload |
 
 ### System
 | Method | Path | Description |
@@ -352,7 +353,7 @@ Flow:
 
 1. **Proposer** (primary LLM, as above) returns `message`, `trades`, `watchlist_changes`.
 2. **Deterministic validation** (code, no LLM): ticker known, quantity > 0, sufficient cash / shares. Failures are rejected immediately with a reason.
-3. **Reviewer** (second LLM call, same model family is fine but a fresh context and a different system prompt) receives the portfolio context, the user's message, and the surviving proposed actions. It returns a structured verdict per action.
+3. **Reviewer** (second LLM call, same model family is fine but a fresh context and a different system prompt) receives the portfolio context, the user's message, the assistant's previous reply, and the surviving proposed actions. It returns a structured verdict per action.
 4. **Execute** only actions that passed steps 2 and 3, through the same trade/watchlist service used by the REST endpoints.
 5. **Report**: the final chat response lists executed actions and any rejected ones with reasons.
 
@@ -385,7 +386,7 @@ Keep LLM cost and latency low and the integration surface minimal:
 - **Compact context**: portfolio context is a terse JSON/table (cash, total value, and per position: ticker, qty, avg cost, price, P&L %; watchlist as `ticker:price`). No verbose prose, no sparkline or history data.
 - **Stable prompt prefix**: put the static system prompt and schema instructions first and the dynamic portfolio data and user message last, so provider-side prompt caching can apply where available.
 - **Proposer limits**: set `max_tokens` (e.g. 800) and low reasoning effort on `gpt-oss-120b`. Instruct it to keep `message` to a few sentences.
-- **Reviewer gets minimum context**: only the user's latest message, the proposed actions, and cash plus positions. No conversation history and no watchlist. Set a small `max_tokens` (e.g. 300), low reasoning effort, and one-sentence reasons.
+- **Reviewer gets minimum context**: only the user's latest message, the assistant's previous reply (so a short "yes" can be checked against what was proposed), the proposed actions, and cash plus positions. No other history and no watchlist. Set a small `max_tokens` (e.g. 500; reasoning tokens count), low reasoning effort, and one-sentence reasons.
 - **Skip calls when pointless**: no reviewer call when there are no actions; deterministic validation runs first so obviously invalid actions never reach the reviewer.
 - **Mock mode** makes zero network calls.
 

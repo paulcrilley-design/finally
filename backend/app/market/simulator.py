@@ -64,6 +64,11 @@ class GBMSimulator:
 
     # --- Public API ---
 
+    def resume(self, ticker: str, price: float, prev_close: float | None) -> None:
+        """Continue a tracked ticker from a known price and daily baseline."""
+        self._prices[ticker] = price
+        self._open_prices[ticker] = prev_close or price
+
     def step(self) -> dict[str, float]:
         """Advance every ticker one tick. Returns {ticker: price rounded to 2 dp}."""
         n = len(self._tickers)
@@ -186,7 +191,9 @@ class SimulatorDataSource(MarketDataSource):
         event_probability: float = 0.001,
         seed: int | None = None,
         degraded_reason: str | None = None,
+        resume_from_cache: bool = False,  # start from cached prices, not the seed prices
     ) -> None:
+        self._resume = resume_from_cache
         self._cache = price_cache
         self._interval = update_interval
         self._event_prob = event_probability
@@ -212,6 +219,11 @@ class SimulatorDataSource(MarketDataSource):
             raise RuntimeError("SimulatorDataSource already started")
         names = clean_tickers(tickers)
         self._sim = GBMSimulator(names, event_probability=self._event_prob, seed=self._seed)
+        if self._resume:
+            for ticker in names:
+                cached = self._cache.get(ticker)
+                if cached:
+                    self._sim.resume(ticker, cached.price, cached.prev_close)
         for ticker in names:  # seed the cache so SSE and trades have prices at once
             self._write(ticker, self._sim.get_price(ticker))
         self._task = asyncio.create_task(self._run_loop(), name="simulator-loop")

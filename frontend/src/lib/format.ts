@@ -34,8 +34,10 @@ export function formatTime(ms: number): string {
 export type PnlState = "profit" | "loss" | "flat";
 
 export function pnlState(value: number | null | undefined): PnlState {
-  if (value == null || Math.abs(value) < 0.005) return "flat";
-  return value > 0 ? "profit" : "loss";
+  // Rounded exactly as `signed` displays it, so a "0.00" label is never coloured as a gain or loss.
+  const rounded = value == null ? 0 : Math.round(value * 100) / 100;
+  if (rounded === 0) return "flat";
+  return rounded > 0 ? "profit" : "loss";
 }
 
 export const PNL_TEXT: Record<PnlState, string> = {

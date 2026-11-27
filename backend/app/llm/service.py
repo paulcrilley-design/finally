@@ -43,7 +43,10 @@ async def handle_chat(state, user_id: str, user_message: str) -> dict:
     summary, error = None, None
     if survivors:
         try:
-            verdicts = await _review(state, user_id, user_message, survivors)
+            previous = next(
+                (m["content"] for m in reversed(history) if m["role"] == "assistant"), None
+            )
+            verdicts = await _review(state, user_id, user_message, survivors, previous)
             summary = verdicts.summary
             _apply_verdicts(survivors, verdicts)
         except client.LLMError as exc:
@@ -77,12 +80,13 @@ async def _propose(state, user_id: str, history: list[dict], user_message: str) 
 
 
 async def _review(
-    state, user_id: str, user_message: str, survivors: list[dict]
+    state, user_id: str, user_message: str, survivors: list[dict], previous_reply: str | None
 ) -> ReviewerResponse:
     actions = [_describe(index, result) for index, result in enumerate(survivors)]
     if mock.is_enabled():
         return mock.review(user_message, actions)
-    return await client.review(portfolio.get_portfolio(state, user_id), user_message, actions)
+    account = portfolio.get_portfolio(state, user_id)
+    return await client.review(account, user_message, actions, previous_reply)
 
 
 def _trade_result(trade) -> dict:

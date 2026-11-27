@@ -3,11 +3,17 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { api, errorMessage } from "../lib/api";
 import { formatMoney, formatQuantity } from "../lib/format";
-import type { ChatResponse } from "../lib/types";
+import type { ChatResponse, StoredChatMessage } from "../lib/types";
 import { Alert } from "./Card";
 import { Button, cn, INPUT, PANEL, Spinner, SUBHEADING } from "./ui";
 
 type Message = { role: "user"; text: string } | { role: "assistant"; text: string; reply: ChatResponse };
+
+function fromStored({ role, content, actions }: StoredChatMessage): Message {
+  if (role === "user") return { role, text: content };
+  const reply = { message: content, trades: [], watchlist_changes: [], error: null, ...actions };
+  return { role, text: content, reply };
+}
 
 function Action({ status, text, reason }: { status: "executed" | "rejected"; text: string; reason: string | null }) {
   return (
@@ -70,6 +76,22 @@ export function ChatPanel({
   const [error, setError] = useState<string | null>(null);
   const log = useRef<HTMLDivElement>(null);
 
+  const history = useRef<Promise<void>>(Promise.resolve());
+
+  // Earlier messages go in front of anything typed while they were loading.
+  useEffect(() => {
+    let cancelled = false;
+    history.current = api
+      .chatHistory()
+      .then(({ messages: stored = [] }) => {
+        if (!cancelled) setMessages((all) => [...stored.map(fromStored), ...all]);
+      })
+      .catch(() => {}); // the chat still works without its history
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     if (log.current) log.current.scrollTop = log.current.scrollHeight;
   }, [messages, loading, open]);
@@ -83,6 +105,7 @@ export function ChatPanel({
     setLoading(true);
     setMessages((all) => [...all, { role: "user", text }]);
     try {
+      await history.current; // so the history cannot include the message being sent
       const reply = await api.chat(text);
       setMessages((all) => [...all, { role: "assistant", text: reply.message, reply }]);
       if (reply.trades.length || reply.watchlist_changes.length) await onActions();

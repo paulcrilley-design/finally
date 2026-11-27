@@ -16,14 +16,13 @@ interface CellProps {
   height?: number;
   depth?: number;
   name?: string;
-  pnl?: number | null;
   pnlPercent?: number | null;
 }
 
 /** One treemap rectangle: sized by market value, filled by P&L, labelled with a signed %. */
-export function HeatmapCell({ x = 0, y = 0, width = 0, height = 0, depth, name, pnl, pnlPercent }: CellProps) {
+export function HeatmapCell({ x = 0, y = 0, width = 0, height = 0, depth, name, pnlPercent }: CellProps) {
   if (depth === 0 || !name) return <g />;
-  const state = pnlState(pnl);
+  const state = pnlState(pnlPercent);
   const centre = x + width / 2;
   return (
     <g data-testid={`heatmap-cell-${name}`} data-pnl={state}>
@@ -46,7 +45,7 @@ export function HeatmapCell({ x = 0, y = 0, width = 0, height = 0, depth, name, 
 export function Heatmap({ positions }: { positions: Position[] }) {
   const data = positions
     .filter((p) => p.market_value != null && p.market_value > 0)
-    .map((p) => ({ name: p.ticker, size: p.market_value!, pnl: p.unrealized_pnl, pnlPercent: p.unrealized_pnl_percent }));
+    .map((p) => ({ name: p.ticker, size: p.market_value!, pnlPercent: p.unrealized_pnl_percent }));
   return (
     <Card title="Portfolio heatmap" data-testid="heatmap" aside={<p className="text-xs text-gray-text">Size: value. Colour: P&amp;L.</p>}>
       <div className="h-56">

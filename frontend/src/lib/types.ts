@@ -84,6 +84,12 @@ export interface ChatWatchlistChange extends ActionResult {
   action: "add" | "remove";
 }
 
+export interface StoredChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  actions: Omit<ChatResponse, "message"> | null;
+}
+
 export interface ChatResponse {
   message: string;
   trades: ChatTrade[];

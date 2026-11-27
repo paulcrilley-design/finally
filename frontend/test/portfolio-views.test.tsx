@@ -34,8 +34,8 @@ describe("portfolio views", () => {
   it("marks heatmap cells by P&L", () => {
     render(
       <svg>
-        <HeatmapCell name="AAPL" depth={1} width={100} height={80} pnl={5} pnlPercent={1} />
-        <HeatmapCell name="TSLA" depth={1} width={100} height={80} pnl={-5} pnlPercent={-1} />
+        <HeatmapCell name="AAPL" depth={1} width={100} height={80} pnlPercent={1} />
+        <HeatmapCell name="TSLA" depth={1} width={100} height={80} pnlPercent={-1} />
       </svg>,
     );
     expect(screen.getByTestId("heatmap-cell-AAPL").getAttribute("data-pnl")).toBe("profit");

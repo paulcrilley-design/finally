@@ -69,3 +69,12 @@ test("shows why an action was rejected and changes nothing", async ({ page }) =>
   await expect(page.getByTestId("watchlist-row-PYPL")).toHaveCount(0);
   await expect(page.getByTestId("positions-table")).toContainText("No open positions");
 });
+
+test("keeps the conversation after a page reload", async ({ page }) => {
+  await open(page);
+  await say(page, "buy 1 AAPL");
+  await page.reload();
+  await expect(page.getByTestId("chat-message-user")).toHaveText("buy 1 AAPL");
+  await expect(page.getByTestId("chat-message-assistant")).toContainText("Mock response: here is your request.");
+  await expect(page.getByTestId("chat-action")).toHaveAttribute("data-status", "executed");
+});

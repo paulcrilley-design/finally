@@ -34,6 +34,27 @@ describe("ChatPanel", () => {
     expect((await screen.findByRole("alert")).textContent).toBe("Message is too long.");
   });
 
+  it("restores stored messages and their actions", async () => {
+    stubFetch({
+      messages: [
+        { role: "user", content: "add PYPL", actions: null },
+        {
+          role: "assistant",
+          content: "Added.",
+          actions: {
+            trades: [],
+            watchlist_changes: [{ ticker: "PYPL", action: "add", status: "executed", reason: null, review: null }],
+            error: null,
+          },
+        },
+      ],
+    });
+    render(<ChatPanel open onClose={vi.fn()} onActions={vi.fn()} />);
+    expect((await screen.findByTestId("chat-message-assistant")).textContent).toContain("Added.");
+    expect(screen.getByTestId("chat-message-user").textContent).toBe("add PYPL");
+    expect(screen.getByTestId("chat-action").dataset.status).toBe("executed");
+  });
+
   it("is hidden when closed", () => {
     render(<ChatPanel open={false} onClose={vi.fn()} onActions={vi.fn()} />);
     expect(screen.getByTestId("chat-panel").hidden).toBe(true);

@@ -26,7 +26,7 @@ Needs Docker Desktop. Create a `.env` in the project root (see `.env.example`):
 
 ```bash
 OPENROUTER_API_KEY=your-key   # required for AI chat
-MASSIVE_API_KEY=              # leave empty for now (see Status); the simulator is used
+MASSIVE_API_KEY=              # leave empty to use the simulator (see Status)
 LLM_MOCK=false                # true = deterministic mock LLM (testing, no network)
 ```
 
@@ -45,7 +45,7 @@ app has no login.
 | Component | State |
 |---|---|
 | Market data: simulator, price cache, SSE | Complete — see `planning/MARKET_DATA_SUMMARY.md` |
-| Market data: Massive (real prices) | Not ready — open defects and untested against the live service, so leave `MASSIVE_API_KEY` empty |
+| Market data: Massive (real prices) | Review findings fixed; never run against the live service (no key yet) |
 | Database, portfolio, watchlist and chat APIs | Complete |
 | Frontend | Complete |
 | Docker and start/stop scripts | Complete |

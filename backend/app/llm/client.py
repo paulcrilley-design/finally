@@ -60,6 +60,8 @@ async def propose(
     return await _structured_call(messages, ProposerResponse, PROPOSER_MAX_TOKENS)
 
 
-async def review(portfolio: dict, user_message: str, actions: list[dict]) -> ReviewerResponse:
-    messages = reviewer_messages(portfolio, user_message, actions)
+async def review(
+    portfolio: dict, user_message: str, actions: list[dict], previous_reply: str | None = None
+) -> ReviewerResponse:
+    messages = reviewer_messages(portfolio, user_message, actions, previous_reply)
     return await _structured_call(messages, ReviewerResponse, REVIEWER_MAX_TOKENS)

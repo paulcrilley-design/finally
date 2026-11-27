@@ -9,6 +9,10 @@
 
 ## 0. Follow-up status (2026-11-26, branch `market-data-review-fixes`)
 
+**Update (2026-11-27, branch `agent-teams`):** findings 3, 4 (seeding), 6 to 10 and 13 are fixed, with
+tests in `test_massive_fixes.py`. This supersedes the "Open" entries below. Only the live smoke test
+with a real key remains.
+
 Sections 1 to 6 describe the code **as reviewed** at `40164bc`; line numbers and results there refer to that commit. This section records what changed afterwards.
 
 **Scope agreed:** keep the simulator fallback, since no Massive key is available yet; fix everything except the Massive issues.

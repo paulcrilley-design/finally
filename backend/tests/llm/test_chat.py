@@ -172,3 +172,30 @@ def test_invalid_request(api, message):
     response = api.post("/api/chat", json={"message": message})
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "invalid_request"
+
+
+def test_reviewer_sees_only_the_previous_assistant_reply(chat, llm):
+    llm.replies = [
+        proposal(message="Older reply."),
+        proposal(message="Shall I buy 5 AAPL?"),
+        proposal(trades=[trade()]),
+        reviews(verdict(0)),
+    ]
+    chat("hello")
+    chat("any ideas?")
+    chat("yes")
+    sent = llm.calls[-1]["messages"][-1]["content"]
+    assert "Shall I buy 5 AAPL?" in sent
+    assert "Older reply." not in sent and "any ideas?" not in sent
+
+
+def test_history_returns_stored_messages(api, chat, llm):
+    assert api.get("/api/chat/history").json() == {"messages": []}
+    llm.replies = [proposal(message="Hi.")]
+    chat("hello")
+    messages = api.get("/api/chat/history").json()["messages"]
+    assert [(m["role"], m["content"]) for m in messages] == [
+        ("user", "hello"),
+        ("assistant", "Hi."),
+    ]
+    assert messages[1]["actions"] == {"trades": [], "watchlist_changes": [], "error": None}

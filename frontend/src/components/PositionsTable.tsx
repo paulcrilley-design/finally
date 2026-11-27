@@ -24,7 +24,7 @@ export function PositionsTable({ positions, onSelect }: { positions: Position[];
             </thead>
             <tbody>
               {positions.map((p) => {
-                const colour = PNL_TEXT[pnlState(p.unrealized_pnl)];
+                const colour = (value: number | null) => PNL_TEXT[pnlState(value)];
                 return (
                   <tr key={p.ticker} data-testid={`position-row-${p.ticker}`} className="border-t border-stroke text-right">
                     <th scope="row" className="px-2 py-1.5 text-left">
@@ -41,8 +41,8 @@ export function PositionsTable({ positions, onSelect }: { positions: Position[];
                     </td>
                     <td className="px-2">{formatMoney(p.avg_cost)}</td>
                     <td className="px-2">{formatMoney(p.current_price)}</td>
-                    <td className={cn("px-2", colour)}>{formatSignedMoney(p.unrealized_pnl)}</td>
-                    <td className={cn("px-2", colour)}>{formatPercent(p.unrealized_pnl_percent)}</td>
+                    <td className={cn("px-2", colour(p.unrealized_pnl))}>{formatSignedMoney(p.unrealized_pnl)}</td>
+                    <td className={cn("px-2", colour(p.unrealized_pnl_percent))}>{formatPercent(p.unrealized_pnl_percent)}</td>
                   </tr>
                 );
               })}

@@ -187,7 +187,12 @@ Flash a price only when that ticker's `timestamp` changes.
 
 ## 6. Chat (`backend/app/llm/`)
 
-`create_chat_router() -> APIRouter` (exported from `app.llm`) serves `POST /api/chat`.
+`create_chat_router() -> APIRouter` (exported from `app.llm`) serves `POST /api/chat` and
+`GET /api/chat/history`.
+
+History returns the newest 50 messages, oldest first:
+`{"messages": [{"id": "...", "role": "assistant", "content": "...", "actions": {...}, "created_at": "..."}]}`
+(`actions` is `null` for user messages).
 
 Request `{"message": "buy 5 AAPL"}` (non-empty after trimming, max 2000 characters, else 422
 `invalid_request`). Response is **always 200** for a valid request:
@@ -231,7 +236,7 @@ the message contains the word `reject`, then it rejects everything with reason
 
 Single page, static export (`output: 'export'`, built to `frontend/out`). `npm run build` and
 `npm test` (Vitest, run once, no watch) must work. Commit `package-lock.json`. Node 20 in Docker.
-The chat panel shows messages from the current page session (there is no history endpoint).
+The chat panel loads `GET /api/chat/history` when the page opens.
 Header total value updates live from cash plus positions at SSE prices. Refresh portfolio,
 watchlist and history after trades and chat actions, and history about every 30 s.
 

@@ -13,10 +13,12 @@ Always respond with valid JSON: {"message": str, "trades": [{"ticker": str, "sid
 Use empty lists when there are no actions."""
 
 REVIEWER_SYSTEM = """You are an independent risk reviewer for a simulated trading assistant.
-You receive the user's latest message, their cash and positions, and actions another model proposed.
+You receive the user's latest message, the assistant's previous reply (if any), their cash and positions,
+and actions another model proposed.
 Approve or reject each proposed action. You cannot add, modify or resize actions.
 Reject an action if:
-- it is not consistent with what the user asked for or agreed to (a short confirmation such as "yes" or "go ahead" counts as agreement);
+- it is not consistent with what the user asked for or agreed to. A short confirmation such as "yes" or "go ahead" agrees only to what the
+  previous assistant reply proposed: same ticker, side and size;
 - its size is wildly out of proportion to the portfolio;
 - it carries a concentration risk the user did not ask for, or looks like an obvious error (wrong ticker, wrong side, quantity typo).
 Watchlist changes move no money: approve them if they fit the user's message.
@@ -64,9 +66,12 @@ def proposer_messages(
     ]
 
 
-def reviewer_messages(portfolio: dict, user_message: str, actions: list[dict]) -> list[dict]:
-    """Minimum context: no history and no watchlist."""
+def reviewer_messages(
+    portfolio: dict, user_message: str, actions: list[dict], previous_reply: str | None = None
+) -> list[dict]:
+    """Minimum context: only the previous assistant reply from history, and no watchlist."""
     payload = {
+        "previous_assistant_reply": previous_reply,
         "user_message": user_message,
         **_account(portfolio),
         "proposed_actions": actions,
