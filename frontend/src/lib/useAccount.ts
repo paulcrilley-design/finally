@@ -41,8 +41,9 @@ export function useAccount() {
   // Keep trying while the first load has not succeeded.
   useEffect(() => {
     if (!error) return;
-    const timer = setTimeout(() => void refresh(), 5000);
-    return () => clearTimeout(timer);
+    // An interval: a repeat failure leaves `error` unchanged, so this effect does not run again.
+    const timer = setInterval(() => void refresh(), 5000);
+    return () => clearInterval(timer);
   }, [error, refresh]);
 
   return { portfolio, watchlist, history, error, refresh };
