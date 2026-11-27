@@ -7,7 +7,7 @@
 
 > A trader opens the app served by one FastAPI process and sees the ten tickers seeded in the database with prices updating live.
 
-Delivered by `01-02-PLAN.md`, Task 1 (the tracer), proven end to end on the server side with a page that type-checks. The documented run command follows in `01-03`, page tests in `01-04`, and the real build is checked in `01-10`. The rest of Phase 1 expands that slice.
+Delivered by `01-02-PLAN.md`, Task 1 (the tracer), proven end to end on the server side with a page that type-checks; the ignore rules it relies on come from `01-01`. The stored watchlist API, identity and row order follow in `01-11`, the documented run command in `01-03`, page tests in `01-04`, and the real build is checked in `01-10`. The rest of Phase 1 expands that slice.
 
 ## Architectural Decisions
 
@@ -29,9 +29,9 @@ Delivered by `01-02-PLAN.md`, Task 1 (the tracer), proven end to end on the serv
 ## Stack Touched in Phase 1
 
 - [ ] Project scaffold — framework and build (01-02); test runner and lint (01-04)
-- [ ] Routing — `/` and `/api/watchlist`, `/api/stream/prices` (01-02); `/api/health` (01-05)
-- [ ] Database — one real write (seed) and one real read (watchlist) (01-02); guarantees under test (01-03)
-- [ ] UI — live watchlist wired to the REST API and the price stream (read-only; the first user input arrives in Phase 2) — 01-02, 01-06, 01-07, 01-09
+- [ ] Routing — `/` and `/api/stream/prices` (01-02); `/api/watchlist` (01-11); `/api/health` (01-05)
+- [ ] Database — one real write (seed) and one real read (tracked tickers) (01-02); watchlist read per user (01-11); guarantees under test (01-03)
+- [ ] UI — live watchlist wired to the price stream (01-02) and the REST API (01-11) (read-only; the first user input arrives in Phase 2) — then 01-06, 01-07, 01-09
 - [ ] Deployment — documented local full-stack run command in `README.md` — 01-03, 01-10
 
 ## Run Command

@@ -45,8 +45,8 @@ Task IDs are filled in from the plans. The requirement-to-test map is below.
 | APP-01 | `/` serves index, API wins over static, unknown `/api` is JSON 404 | integration | `uv run --extra dev pytest tests/test_api.py -x` | No, Wave 0 | 01-02 |
 | APP-02 | Health shape; degraded on degraded or stale source | integration | same file | No | 01-05 |
 | APP-03 | Fresh file gets 6 tables, cash 10000.0, 10 tickers in order; second init changes nothing, removed ticker stays removed | unit | `uv run --extra dev pytest tests/test_db.py -x` | No | 01-02, 01-03 |
-| APP-05 | Owned tables have `user_id`; overriding `get_current_user` yields an empty watchlist | unit and integration | both files | No | 01-02, 01-03 |
-| WATCH-01 | Watchlist order, null price fields; table renders price, change %, "—" | integration and component | pytest; `npx vitest run src/app src/components/Watchlist.test.tsx` | No | 01-02, 01-04, 01-07 |
+| APP-05 | Owned tables have `user_id`; overriding `get_current_user` yields an empty watchlist | unit and integration | both files | No | 01-11, 01-03 |
+| WATCH-01 | Watchlist order, null price fields; table renders price, change %, "—" | integration and component | pytest; `npx vitest run src/app src/components/Watchlist.test.tsx` | No | 01-02, 01-11, 01-04, 01-07 |
 | WATCH-02 | Reducer cases (first, repeat timestamp, unchanged price, up, down); arrow and class rendered | unit and component | `npx vitest run src/lib/ticks.test.ts` | No | 01-07 |
 | WATCH-07 | open, error, 10 s, errors after 10 s stay disconnected, CLOSED recreate, cleanup | unit (fake timers) | `npx vitest run src/lib/priceStream.test.ts` | No | 01-09 |
 | UI-01 | Header logo alt "openUI", "FinAlly", footer text; fonts self-hosted | component, plus manual look | `npx vitest run src/components` | No | 01-06, 01-08, 01-10 |
@@ -57,8 +57,8 @@ Task IDs are filled in from the plans. The requirement-to-test map is below.
 
 ## Wave 0 Requirements
 
-- [ ] `.gitignore` fix (01-02) and `db/.gitkeep` (01-03)
-- [ ] `backend/tests/test_api.py` (01-02), `test_db.py` (01-03), `test_shutdown.py` (01-05), with app fixtures (temp DB, temp static dir, simulator forced)
+- [ ] `.gitignore` fix (01-01) and `db/.gitkeep` (01-03)
+- [ ] `backend/tests/test_api.py` (01-02, extended in 01-11), `test_db.py` (01-03), `test_shutdown.py` (01-05), with app fixtures (temp DB, temp static dir, simulator forced)
 - [ ] `frontend/` toolchain (01-02); `vitest.config.mts`, `src/test/setup.ts`, `src/test/fakeEventSource.ts` (01-04)
 
 ---

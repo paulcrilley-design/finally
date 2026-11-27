@@ -226,7 +226,7 @@ backend/
     main.py            # create_app(db_path, static_dir): no import side effects
     identity.py        # get_current_user()
     routes/__init__.py, health.py, watchlist.py
-  db/__init__.py, database.py          # schema, seed and queries in one module (plan 01-02)
+  db/__init__.py, database.py          # schema, seed and queries in one module (plans 01-02, 01-11)
   tests/test_db.py, test_api.py, test_shutdown.py
 frontend/
   package.json, next.config.ts, postcss.config.mjs, tsconfig.json,
