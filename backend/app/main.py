@@ -12,7 +12,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 
 from app.market import PriceCache, create_stream_router, start_market_data
-from db.database import init_db, tracked_tickers
+from app.routes import watchlist_router
+from db import init_db, tracked_tickers
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ def create_app(db_path: Path | None = None, static_dir: Path | None = None) -> F
     app.state.price_cache = cache
     app.state.db_path = db_path
     # API routes first: the static mount matches every other path.
+    app.include_router(watchlist_router)
     app.include_router(create_stream_router(cache))
 
     @app.api_route(

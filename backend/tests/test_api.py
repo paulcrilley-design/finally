@@ -9,13 +9,26 @@ import pytest
 import uvicorn
 from fastapi.testclient import TestClient
 
+from app.identity import get_current_user
 from app.main import create_app
+from db import connect
 
 from .market.helpers import wait_until
 
 pytestmark = pytest.mark.usefixtures("app_env")
 
-SEEDED = {"AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "NVDA", "META", "JPM", "V", "NFLX"}
+SEEDED = ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "NVDA", "META", "JPM", "V", "NFLX"]
+PRICE_KEYS = (
+    "price",
+    "previous_price",
+    "timestamp",
+    "change",
+    "change_percent",
+    "direction",
+    "prev_close",
+    "day_change",
+    "day_change_percent",
+)
 
 
 # Not autouse: tests/market/test_factory.py selects sources through the same variables.
@@ -58,13 +71,17 @@ async def test_walking_skeleton_end_to_end(app_env: Path, static_dir: Path):
                 assert page.status_code == 200
                 assert "FinAlly stub" in page.text
 
+                watchlist = (await client.get("/api/watchlist")).json()["watchlist"]
+                assert [item["ticker"] for item in watchlist] == SEEDED
+                assert all(item["price"] is not None for item in watchlist)
+
                 async with client.stream("GET", "/api/stream/prices") as response:
                     assert response.status_code == 200
                     async for line in response.aiter_lines():
                         if line.startswith("data: "):
                             break
                     prices = json.loads(line.removeprefix("data: "))
-                    assert set(prices) == SEEDED
+                    assert set(prices) == set(SEEDED)
                     assert all(entry["price"] is not None for entry in prices.values())
                     assert app_env.is_file()
 
@@ -84,8 +101,27 @@ def test_unknown_api_path_is_json_404(static_dir: Path, method: str):
         assert response.json() == {"detail": "Not Found"}
 
 
+def test_ticker_without_a_price_has_null_price_fields(app_env: Path, static_dir: Path):
+    with TestClient(create_app(static_dir=static_dir)) as client:
+        with connect(app_env) as conn:  # after startup, so no source tracks it
+            conn.execute(
+                "INSERT INTO watchlist (id, user_id, ticker, added_at) VALUES (?, ?, ?, ?)",
+                ("zzzz", "default", "ZZZZ", "9999-01-01T00:00:00+00:00"),
+            )
+        item = client.get("/api/watchlist").json()["watchlist"][-1]
+        assert item == {"ticker": "ZZZZ", **dict.fromkeys(PRICE_KEYS)}
+
+
+def test_overridden_user_gets_empty_watchlist(static_dir: Path):
+    app = create_app(static_dir=static_dir)
+    app.dependency_overrides[get_current_user] = lambda: "nobody"
+    with TestClient(app) as client:
+        assert client.get("/api/watchlist").json() == {"watchlist": []}
+
+
 def test_missing_static_dir_serves_the_api_only(tmp_path: Path):
     with TestClient(create_app(static_dir=tmp_path / "missing")) as client:
         response = client.get("/api/no-such-endpoint")
         assert response.status_code == 404
         assert response.json() == {"detail": "Not Found"}
+        assert client.get("/api/watchlist").status_code == 200

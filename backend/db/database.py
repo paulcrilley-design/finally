@@ -102,3 +102,13 @@ def tracked_tickers(path: Path) -> list[str]:
     with connect(path) as conn:
         rows = conn.execute("SELECT ticker FROM watchlist UNION SELECT ticker FROM positions")
         return [row["ticker"] for row in rows]
+
+
+def list_watchlist(path: Path, user_id: str) -> list[str]:
+    """One user's watched tickers, in the order they were added."""
+    with connect(path) as conn:
+        rows = conn.execute(
+            "SELECT ticker FROM watchlist WHERE user_id = ? ORDER BY added_at, rowid",
+            (user_id,),
+        )
+        return [row["ticker"] for row in rows]
