@@ -1,0 +1,20 @@
+# Allow only what the Dockerfile copies.
+*
+!backend/pyproject.toml
+!backend/uv.lock
+!backend/app
+!backend/db
+!frontend
+
+# Never send secrets, local builds or caches
+**/.env
+**/.env.*
+**/.envrc
+**/node_modules
+**/.next
+**/out
+**/__pycache__
+**/*.py[co]
+**/*.db*
+**/*.tsbuildinfo
+**/.DS_Store
