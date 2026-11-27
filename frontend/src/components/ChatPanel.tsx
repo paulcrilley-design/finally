@@ -5,7 +5,7 @@ import { api, errorMessage } from "../lib/api";
 import { formatMoney, formatQuantity } from "../lib/format";
 import type { ChatResponse } from "../lib/types";
 import { Alert } from "./Card";
-import { Button, cn, INPUT, PANEL, Spinner } from "./ui";
+import { Button, cn, INPUT, PANEL, Spinner, SUBHEADING } from "./ui";
 
 type Message = { role: "user"; text: string } | { role: "assistant"; text: string; reply: ChatResponse };
 
@@ -113,7 +113,7 @@ export function ChatPanel({
       )}
     >
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="font-display text-base font-semibold">AI assistant</h2>
+        <h2 className={SUBHEADING}>AI assistant</h2>
         <Button variant="ghost" size="sm" onClick={onClose}>
           Close
         </Button>

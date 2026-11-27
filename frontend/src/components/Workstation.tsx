@@ -52,15 +52,21 @@ export function Workstation() {
         {account.error && <Alert className="mb-4">{account.error} Retrying…</Alert>}
         <div className={cn("grid gap-4", chatOpen && "xl:grid-cols-[minmax(0,1fr)_320px]")}>
           <div className="grid min-w-0 content-start items-start gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
-            <Watchlist
-              items={account.watchlist}
-              prices={latest}
-              history={history}
-              selected={selected}
-              onSelect={setPicked}
-              onChanged={account.refresh}
-            />
-            <div className="grid min-w-0 gap-4">
+            {/* Two columns from lg. Below that the wrappers dissolve and `order` sets the stacking. */}
+            <div className="contents lg:grid lg:min-w-0 lg:gap-4">
+              <Watchlist
+                items={account.watchlist}
+                prices={latest}
+                history={history}
+                selected={selected}
+                onSelect={setPicked}
+                onChanged={account.refresh}
+              />
+              <div className="order-1 min-w-0 lg:order-none">
+                <PnlChart history={account.history} />
+              </div>
+            </div>
+            <div className="contents lg:grid lg:min-w-0 lg:gap-4">
               <MainChart
                 ticker={selected}
                 points={selected ? (history[selected] ?? []) : []}
@@ -68,9 +74,8 @@ export function Workstation() {
               />
               <TradeBar selected={selected} onTraded={account.refresh} />
               <Heatmap positions={positions} />
-              <PnlChart history={account.history} />
             </div>
-            <div className="min-w-0 lg:col-span-2">
+            <div className="order-2 min-w-0 lg:order-none lg:col-span-2">
               <PositionsTable positions={positions} onSelect={setPicked} />
             </div>
           </div>

@@ -1,8 +1,7 @@
 # FinAlly — Agent Team Plan
 
-**Status (2026-11-27):** approved. Step 1 (`CONTRACTS.md`), Stage A and Stage B are done and
-committed (225 backend and 23 frontend tests pass). Next: Stage C, after Paul has checked
-`/usage` and started Docker Desktop.
+**Status (2026-11-27):** complete. All stages are built, committed and pushed to `agent-teams`
+(not merged to `main`). Passing: 225 backend, 23 frontend and 23 Playwright tests.
 
 **Goal:** build the rest of the platform as defined in `PLAN.md` using an agent team. Market data
 is already built (`MARKET_DATA_SUMMARY.md`). Work on branch `agent-teams`.

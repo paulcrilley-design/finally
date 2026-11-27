@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
-import { cn, PANEL } from "./ui";
+import { cn, PANEL, SUBHEADING } from "./ui";
 
 /** A compact titled panel for the dense workstation layout. */
 export function Card({
@@ -12,7 +12,7 @@ export function Card({
   return (
     <section className={cn(PANEL, "min-w-0 p-4", className)} aria-label={title} {...props}>
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-display text-base font-semibold text-navy-dark">{title}</h2>
+        <h2 className={SUBHEADING}>{title}</h2>
         {aside}
       </div>
       {children}
