@@ -36,14 +36,19 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Decide in discussion**: frontend test runner; database setup at startup or first request; `.env` loading; SSE and watchlist response contracts
 **Notes**: Write the frontend fresh to `planning/OUI_FORMAT.md` (the old design files stay deleted); copy the logo and `Logo.tsx` with `standards/sync-brand.sh`. Run uvicorn with `--timeout-graceful-shutdown 3`. Leave `MASSIVE_API_KEY` empty
-**Plans**: 5 plans
+**Plans**: 10 plans
 
 Plans:
 - [ ] 01-01-PLAN.md — Owner approval of the flagged packages before any install (wave 1)
-- [ ] 01-02-PLAN.md — Walking skeleton: seeded database to live prices on the served page, data guarantees, run command (wave 2)
-- [ ] 01-03-PLAN.md — Health endpoint and clean shutdown with a stream open (wave 3)
-- [ ] 01-04-PLAN.md — Daily change, price flash and arrow, connection status and reconnect (wave 3)
-- [ ] 01-05-PLAN.md — openUI brand, header, footer, accessibility, README and end-of-phase checks (wave 4)
+- [ ] 01-02-PLAN.md — Walking skeleton tracer: seeded database to live prices on the served page (wave 2)
+- [ ] 01-03-PLAN.md — Data guarantees under test, env loading and the run command (wave 3)
+- [ ] 01-04-PLAN.md — Frontend tests and lint around the live page (wave 3)
+- [ ] 01-05-PLAN.md — Health endpoint and clean shutdown with a stream open (wave 4)
+- [ ] 01-06-PLAN.md — openUI colours, fonts and the watchlist in its own modules (wave 4)
+- [ ] 01-07-PLAN.md — Daily change, price flash and arrow (wave 5)
+- [ ] 01-08-PLAN.md — openUI brand files, shared components, header and footer (wave 5)
+- [ ] 01-09-PLAN.md — Connection status and reconnect (wave 6)
+- [ ] 01-10-PLAN.md — openUI page layout, accessibility, README and end-of-phase checks (wave 7)
 
 **UI hint**: yes
 

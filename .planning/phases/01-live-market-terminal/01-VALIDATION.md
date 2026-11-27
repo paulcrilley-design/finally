@@ -29,7 +29,7 @@ created: "2026-11-27"
 
 ## Sampling Rate
 
-- **After every task commit:** Run the quick command for the side touched
+- **After every task commit:** Run the quick command for the side touched (before plan 01-04 adds Vitest, the frontend check is `npm --prefix frontend run typecheck`)
 - **After every plan wave:** Run the full suite on both sides
 - **Before `/gsd-verify-work`:** Full suite green, then the manual checks
 - **Max feedback latency:** 60 seconds
@@ -40,26 +40,26 @@ created: "2026-11-27"
 
 Task IDs are filled in from the plans. The requirement-to-test map is below.
 
-| Req ID | Behaviour | Type | Automated Command | File Exists? |
-|--------|-----------|------|-------------------|--------------|
-| APP-01 | `/` serves index, API wins over static, unknown `/api` is JSON 404 | integration | `uv run --extra dev pytest tests/test_api.py -x` | No, Wave 0 |
-| APP-02 | Health shape; degraded on degraded or stale source | integration | same file | No |
-| APP-03 | Fresh file gets 6 tables, cash 10000.0, 10 tickers in order; second init changes nothing, removed ticker stays removed | unit | `uv run --extra dev pytest tests/test_db.py -x` | No |
-| APP-05 | Owned tables have `user_id`; overriding `get_current_user` yields an empty watchlist | unit and integration | both files | No |
-| WATCH-01 | Watchlist order, null price fields; table renders price, change %, "—" | integration and component | pytest; `npx vitest run src/components/Watchlist.test.tsx` | No |
-| WATCH-02 | Reducer cases (first, repeat timestamp, unchanged price, up, down); arrow and class rendered | unit and component | `npx vitest run src/lib/ticks.test.ts` | No |
-| WATCH-07 | open, error, 10 s, CLOSED recreate, cleanup | unit (fake timers) | `npx vitest run src/lib/priceStream.test.ts` | No |
-| UI-01 | Header logo alt "openUI", "FinAlly", footer text; fonts self-hosted | component, plus manual look | `npx vitest run src/components` | No |
-| UI-03 | Visible status text and screen-reader direction text; contrast and focus | component, plus manual | same | No |
-| OPS-03 | Real uvicorn with open stream exits and runs lifespan shutdown | integration | `uv run --extra dev pytest tests/test_shutdown.py -x` | No |
+| Req ID | Behaviour | Type | Automated Command | File Exists? | Plans |
+|--------|-----------|------|-------------------|--------------|-------|
+| APP-01 | `/` serves index, API wins over static, unknown `/api` is JSON 404 | integration | `uv run --extra dev pytest tests/test_api.py -x` | No, Wave 0 | 01-02 |
+| APP-02 | Health shape; degraded on degraded or stale source | integration | same file | No | 01-05 |
+| APP-03 | Fresh file gets 6 tables, cash 10000.0, 10 tickers in order; second init changes nothing, removed ticker stays removed | unit | `uv run --extra dev pytest tests/test_db.py -x` | No | 01-02, 01-03 |
+| APP-05 | Owned tables have `user_id`; overriding `get_current_user` yields an empty watchlist | unit and integration | both files | No | 01-02, 01-03 |
+| WATCH-01 | Watchlist order, null price fields; table renders price, change %, "—" | integration and component | pytest; `npx vitest run src/app src/components/Watchlist.test.tsx` | No | 01-02, 01-04, 01-07 |
+| WATCH-02 | Reducer cases (first, repeat timestamp, unchanged price, up, down); arrow and class rendered | unit and component | `npx vitest run src/lib/ticks.test.ts` | No | 01-07 |
+| WATCH-07 | open, error, 10 s, errors after 10 s stay disconnected, CLOSED recreate, cleanup | unit (fake timers) | `npx vitest run src/lib/priceStream.test.ts` | No | 01-09 |
+| UI-01 | Header logo alt "openUI", "FinAlly", footer text; fonts self-hosted | component, plus manual look | `npx vitest run src/components` | No | 01-06, 01-08, 01-10 |
+| UI-03 | Visible status text and screen-reader direction text; contrast and focus | component, plus manual | same | No | 01-07, 01-09, 01-10 |
+| OPS-03 | Real uvicorn with open stream exits and runs lifespan shutdown | integration | `uv run --extra dev pytest tests/test_shutdown.py -x` | No | 01-05, 01-10 |
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `.gitignore` fix and `db/.gitkeep`
-- [ ] `backend/tests/test_db.py`, `test_api.py`, `test_shutdown.py`, with an app fixture (temp DB, temp static dir, simulator forced)
-- [ ] `frontend/` toolchain, `vitest.config.mts`, `src/test/setup.ts`, `src/test/fakeEventSource.ts`
+- [ ] `.gitignore` fix (01-02) and `db/.gitkeep` (01-03)
+- [ ] `backend/tests/test_api.py` (01-02), `test_db.py` (01-03), `test_shutdown.py` (01-05), with app fixtures (temp DB, temp static dir, simulator forced)
+- [ ] `frontend/` toolchain (01-02); `vitest.config.mts`, `src/test/setup.ts`, `src/test/fakeEventSource.ts` (01-04)
 
 ---
 

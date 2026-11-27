@@ -25,10 +25,7 @@
 | `backend/app/routes/health.py` | route | request-response | `prelegal:backend/app/api/health.py` | exact |
 | `backend/app/routes/watchlist.py` | route | request-response (read) | `prelegal:backend/app/api/health.py`, `deps.py` | role-match |
 | `backend/db/__init__.py` | config | - | `backend/app/market/__init__.py` | role-match |
-| `backend/db/database.py` | service | CRUD | `prelegal:backend/app/db.py` | exact |
-| `backend/db/schema.py` | model | CRUD | `pm:backend/app/database.py` (SCHEMA) | exact |
-| `backend/db/seed.py` | migration (seed) | batch | `pm:backend/app/database.py` `initialize_database` | role-match |
-| `backend/db/watchlist.py` | model (queries) | CRUD | `pm:backend/app/database.py` | partial |
+| `backend/db/database.py` | service, schema, seed, queries (one module) | CRUD, batch | `prelegal:backend/app/db.py` (connection), `pm:backend/app/database.py` (SCHEMA, `initialize_database`, queries) | exact |
 | `backend/tests/test_db.py` | test | CRUD | `prelegal:backend/tests/unit/test_db.py` | exact |
 | `backend/tests/test_api.py` | test | request-response | `prelegal:backend/tests/conftest.py`, `integration/test_static.py`, `test_health.py` | exact |
 | `backend/tests/test_shutdown.py` | test | streaming | `backend/tests/market/test_stream_http.py` | exact |
@@ -124,7 +121,7 @@ Take the router shape and `request.app.state.*` access. Differences:
 - Source status keys (`simulator.py:202-208`): `mode`, `degraded`, `degraded_reason`, `tickers`; do not echo `degraded_reason`.
 - Watchlist items: `cache.get(normalize_ticker(t))` then `update.to_dict()`, otherwise the same keys with `null` (`models.py:54-67`).
 
-### `backend/db/database.py`, `schema.py`, `seed.py`, `watchlist.py`
+### `backend/db/database.py`
 
 **Analog (connection, init, health check):** `prelegal:backend/app/db.py` lines 45-74.
 ```python

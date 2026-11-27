@@ -226,7 +226,7 @@ backend/
     main.py            # create_app(db_path, static_dir): no import side effects
     identity.py        # get_current_user()
     routes/__init__.py, health.py, watchlist.py
-  db/__init__.py, database.py, schema.py, seed.py, watchlist.py
+  db/__init__.py, database.py          # schema, seed and queries in one module (plan 01-02)
   tests/test_db.py, test_api.py, test_shutdown.py
 frontend/
   package.json, next.config.ts, postcss.config.mjs, tsconfig.json,
@@ -373,7 +373,7 @@ Rules:
 - Seed the profile and 10 watchlist rows in one transaction, gated on the absence of the profile row. Never re-seed tickers on later starts (Phase 2 lets the user remove them).
 - Watchlist query: `... WHERE user_id = ? ORDER BY added_at, rowid` (seed timestamps can tie).
 - Tracked tickers (global, no user filter): `SELECT ticker FROM watchlist UNION SELECT ticker FROM positions`.
-- Define `DEFAULT_USER_ID = "default"` in `db/seed.py`; `app/identity.py` imports it and exposes `def get_current_user() -> str`. Routes use `Annotated[str, Depends(get_current_user)]`. Every other query function takes `user_id` explicitly.
+- Define `DEFAULT_USER_ID = "default"` in `db/database.py`; `app/identity.py` imports it and exposes `def get_current_user() -> str`. Routes use `Annotated[str, Depends(get_current_user)]`. Every other query function takes `user_id` explicitly.
 - DB routes are plain `def` (thread pool). Open and close the connection inside the same function call; do not yield a connection from a dependency into another thread.
 
 ### Pattern 3: API contracts
@@ -653,11 +653,11 @@ For Phase 5: PLAN.md section 11 says Node 20 for the Docker build stage; `vitest
 | A10 | `next typegen` creates `next-env.d.ts` without a full build | Validation | Typecheck waits for the checkpoint build |
 | A11 | The `globals.css`, `priceStream.ts`, `main.py` and test setup listings are untested sketches | Patterns, Code Examples | Executor adjusts; unit tests catch it |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Is `MASSIVE_API_KEY` empty in the local `.env`?** Not checked (secrets are not read). Add to the human checkpoint.
-2. **Logo transparency differs from OUI_FORMAT.** Report to the user; no change in this phase.
-3. **Additions beyond the spec** (`NOT NULL`, `CHECK`, API 404 catch-all, skip link) are discretionary; drop any the user dislikes.
+1. **Is `MASSIVE_API_KEY` empty in the local `.env`?** RESOLVED: Claude does not read the file. The owner checks it in the first end-of-phase human check (plan 01-10, Task 2), where the health check must report mode `simulator`. Backend tests force the simulator, so they do not depend on the answer.
+2. **Logo transparency differs from OUI_FORMAT.** RESOLVED: no change in this phase to the master or the copy; the logo sits only on the white header, and plan 01-08 reports the difference to the user in its summary.
+3. **Additions beyond the spec** (`NOT NULL`, `CHECK`, API 404 catch-all, skip link). RESOLVED: all four are adopted under CONTEXT.md "Claude's Discretion": the constraints and the catch-all in plan 01-02, the skip link in plan 01-10. The user may drop any of them.
 
 ## Environment Availability
 
