@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 
 from .cache import PriceCache
@@ -15,11 +16,16 @@ logger = logging.getLogger(__name__)
 
 def _env_float(name: str, default: float) -> float:
     raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
     try:
-        return float(raw) if raw else default
+        value = float(raw)
     except ValueError:
+        value = math.nan
+    if not math.isfinite(value):
         logger.warning("Ignoring non-numeric %s=%r", name, raw)
         return default
+    return value
 
 
 def _env_seed() -> int | None:
@@ -34,6 +40,14 @@ def _env_seed() -> int | None:
         logger.warning("Ignoring SIM_SEED=%r (must be a non-negative integer)", raw)
         return None
     return seed
+
+
+def _env_mode() -> str:
+    raw = os.environ.get("MASSIVE_MODE", "").strip().lower() or "auto"
+    if raw not in ("auto", "snapshot", "eod"):
+        logger.warning("Ignoring MASSIVE_MODE=%r (use auto, snapshot or eod)", raw)
+        return "auto"
+    return raw
 
 
 def create_market_data_source(price_cache: PriceCache) -> MarketDataSource:
@@ -53,7 +67,8 @@ def create_market_data_source(price_cache: PriceCache) -> MarketDataSource:
             api_key=api_key,
             price_cache=price_cache,
             poll_interval=max(_env_float("MASSIVE_POLL_INTERVAL", 15.0), 1.0),
-            requested_mode=os.environ.get("MASSIVE_MODE", "auto").strip().lower() or "auto",
+            requested_mode=_env_mode(),
+            fallback_seed=_env_seed(),
         )
     logger.info("Market data source: GBM simulator")
     return SimulatorDataSource(price_cache=price_cache, seed=_env_seed())

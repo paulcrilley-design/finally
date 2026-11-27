@@ -24,7 +24,7 @@ The user runs a single Docker command (or a provided start script). A browser op
 - **Watch prices stream** — prices flash teal (uptick) or orange (downtick), with an up/down arrow, using subtle CSS animations that fade
 - **View sparkline mini-charts** — price action beside each ticker in the watchlist, accumulated on the frontend from the SSE stream since page load (sparklines fill in progressively)
 - **Click a ticker** to see a larger detailed chart in the main chart area
-- **Buy and sell shares** — market orders only, instant fill at current price, no fees, no confirmation dialog
+- **Buy and sell shares** — market orders only, sized in shares (up to 6 decimals) or in US dollars, instant fill at current price, no fees, no confirmation dialog
 - **Monitor their portfolio** — a heatmap (treemap) showing positions sized by weight and colored by P&L, plus a P&L chart tracking total portfolio value over time
 - **View a positions table** — ticker, quantity, average cost, current price, unrealized P&L, % change
 - **Chat with the AI assistant** — ask about their portfolio, get analysis, and have the AI execute trades and manage the watchlist through natural language
@@ -283,7 +283,7 @@ All user-owned tables include a `user_id` column defaulting to `"default"`. Only
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/portfolio` | Current positions, cash balance, total value, unrealized P&L |
-| POST | `/api/portfolio/trade` | Execute a trade: `{ticker, quantity, side}` |
+| POST | `/api/portfolio/trade` | Execute a trade: `{ticker, side}` plus `quantity` (shares) or `amount` (US$) |
 | GET | `/api/portfolio/history` | Portfolio value snapshots over time (for P&L chart) |
 
 ### Watchlist
@@ -297,6 +297,7 @@ All user-owned tables include a `user_id` column defaulting to `"default"`. Only
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/chat` | Send a message, receive complete JSON response (message + executed actions) |
+| GET | `/api/chat/history` | Stored messages, so the conversation survives a page reload |
 
 ### System
 | Method | Path | Description |
@@ -341,7 +342,7 @@ The LLM is instructed to respond with JSON matching this schema:
 ```
 
 - `message` (required): The conversational text shown to the user
-- `trades` (optional): Array of trades to auto-execute. Each trade goes through the same validation as manual trades (sufficient cash for buys, sufficient shares for sells)
+- `trades` (optional): Array of trades to auto-execute, each sized by `quantity` (shares) or `amount` (US$). Each trade goes through the same validation as manual trades (sufficient cash for buys, sufficient shares for sells)
 - `watchlist_changes` (optional): Array of watchlist modifications
 
 ### Second-Opinion Review (Checks and Balances)
@@ -352,7 +353,7 @@ Flow:
 
 1. **Proposer** (primary LLM, as above) returns `message`, `trades`, `watchlist_changes`.
 2. **Deterministic validation** (code, no LLM): ticker known, quantity > 0, sufficient cash / shares. Failures are rejected immediately with a reason.
-3. **Reviewer** (second LLM call, same model family is fine but a fresh context and a different system prompt) receives the portfolio context, the user's message, and the surviving proposed actions. It returns a structured verdict per action.
+3. **Reviewer** (second LLM call, same model family is fine but a fresh context and a different system prompt) receives the portfolio context, the user's message, the assistant's previous reply, and the surviving proposed actions. It returns a structured verdict per action.
 4. **Execute** only actions that passed steps 2 and 3, through the same trade/watchlist service used by the REST endpoints.
 5. **Report**: the final chat response lists executed actions and any rejected ones with reasons.
 
@@ -385,7 +386,7 @@ Keep LLM cost and latency low and the integration surface minimal:
 - **Compact context**: portfolio context is a terse JSON/table (cash, total value, and per position: ticker, qty, avg cost, price, P&L %; watchlist as `ticker:price`). No verbose prose, no sparkline or history data.
 - **Stable prompt prefix**: put the static system prompt and schema instructions first and the dynamic portfolio data and user message last, so provider-side prompt caching can apply where available.
 - **Proposer limits**: set `max_tokens` (e.g. 800) and low reasoning effort on `gpt-oss-120b`. Instruct it to keep `message` to a few sentences.
-- **Reviewer gets minimum context**: only the user's latest message, the proposed actions, and cash plus positions. No conversation history and no watchlist. Set a small `max_tokens` (e.g. 300), low reasoning effort, and one-sentence reasons.
+- **Reviewer gets minimum context**: only the user's latest message, the assistant's previous reply (so a short "yes" can be checked against what was proposed), the proposed actions, and cash plus positions. No other history and no watchlist. Set a small `max_tokens` (e.g. 500; reasoning tokens count), low reasoning effort, and one-sentence reasons.
 - **Skip calls when pointless**: no reviewer call when there are no actions; deterministic validation runs first so obviously invalid actions never reach the reviewer.
 - **Mock mode** makes zero network calls.
 
@@ -428,7 +429,7 @@ The frontend is a single-page application with a dense, terminal-style layout in
 - **Portfolio heatmap** — treemap visualization where each rectangle is a position, sized by portfolio weight, colored by P&L (teal-ink = profit, orange-ink = loss, with +/− signs; see Section 2)
 - **P&L chart** — line chart showing total portfolio value over time, using data from `portfolio_snapshots`
 - **Positions table** — tabular view of all positions: ticker, quantity, avg cost, current price, unrealized P&L, % change
-- **Trade bar** — simple input area: ticker field, quantity field, buy button, sell button. Market orders, instant fill.
+- **Trade bar** — simple input area: ticker field, Shares / US$ switch, size field, buy button, sell button. Market orders, instant fill.
 - **AI chat panel** — docked/collapsible sidebar. Message input, scrolling conversation history, loading indicator while waiting for LLM response. Trade executions and watchlist changes shown inline as confirmations.
 - **Header** — portfolio total value (updating live), connection status indicator, cash balance
 

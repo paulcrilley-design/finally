@@ -11,6 +11,8 @@ from massive.rest.models import GroupedDailyAgg, TickerSnapshot
 from app.market import MarketDataError, MarketDataUnavailableError, PriceCache, reconcile_tickers
 from app.market.massive_client import MassiveDataSource, make_client
 
+from .helpers import wait_until
+
 FORBIDDEN = BadResponse('{"status":"NOT_AUTHORIZED","message":"Your plan doesn\'t include this"}')
 RATE = BadResponse('{"status":"ERROR","error":"You\'ve exceeded the maximum requests per minute"}')
 
@@ -125,10 +127,9 @@ async def test_rate_limit_doubles_interval_then_recovers():
     cache, src = make(client)
     await src.start(["AAPL"])
     try:
-        await asyncio.sleep(0.12)  # first loop poll hits RATE
-        assert src.status()["poll_interval"] > 0.05 or src.status()["last_error"] is None
-        await asyncio.sleep(0.3)
-        assert cache.get_price("AAPL") == 2.0 and src.status()["poll_interval"] == 0.05
+        await wait_until(lambda: src.status()["poll_interval"] > 0.05)  # RATE seen
+        await wait_until(lambda: cache.get_price("AAPL") == 2.0)
+        assert src.status()["poll_interval"] == 0.05
     finally:
         await src.stop()
 

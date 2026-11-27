@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 NEW_YORK = ZoneInfo("America/New_York")
 MAX_BACKOFF = 120.0  # seconds
 FREE_TIER_CALL_GAP = 12.5  # 5 requests/minute => at most one call per 12 s
+PROBE_TICKER = "AAPL"  # polled when nothing is tracked, so key and plan are still checked
 
 
 class MassiveCallError(Exception):
@@ -46,7 +47,11 @@ def make_client(api_key: str, timeout: float) -> RESTClient:
     retries=0: the SDK's default of 3 retries includes HTTP 429, which hides the rate
     limit behind a MaxRetryError and stalls a worker thread. We do our own backoff.
     """
-    return RESTClient(api_key=api_key, retries=0, connect_timeout=timeout, read_timeout=timeout)
+    client = RESTClient(api_key=api_key, retries=0, connect_timeout=timeout, read_timeout=timeout)
+    # The SDK stores its timeout but never gives it to urllib3, so a hung call would keep
+    # its thread (and the process) alive. SDK internal: covered by a test.
+    client.client.connection_pool_kw["timeout"] = client.timeout
+    return client
 
 
 class MassiveDataSource(MarketDataSource):
@@ -66,6 +71,7 @@ class MassiveDataSource(MarketDataSource):
         request_timeout: float = 10.0,
         eod_refresh: float = 3600.0,
         call_gap: float | None = None,  # min seconds between eod calls; None = FREE_TIER_CALL_GAP
+        fallback_seed: int | None = None,  # SIM_SEED for the simulator that may take over
         client: Any = None,  # injectable for tests
         validate_gap: float = 0.5,  # min seconds between snapshot-mode validate calls
     ) -> None:
@@ -79,6 +85,7 @@ class MassiveDataSource(MarketDataSource):
         self._timeout = request_timeout
         self._eod_refresh = eod_refresh
         self._call_gap = FREE_TIER_CALL_GAP if call_gap is None else call_gap
+        self._fallback_seed = fallback_seed
         self._client = client
         self._mode = "eod" if requested_mode == "eod" else "snapshot"
         self._tickers: list[str] = []
@@ -123,6 +130,8 @@ class MassiveDataSource(MarketDataSource):
         if self._task is not None and not self._task.done():
             raise RuntimeError("MassiveDataSource already started")
         self._tickers = clean_tickers(tickers)
+        self._fallback = None
+        self._degraded = None
         self._client = self._client or make_client(self._api_key, self._timeout)
 
         first_delay = 0.0
@@ -145,16 +154,19 @@ class MassiveDataSource(MarketDataSource):
         logger.info("Massive source started: mode=%s tickers=%d", self.mode, len(self._tickers))
 
     async def stop(self) -> None:
-        if self._task and not self._task.done():
-            self._task.cancel()
-            try:
-                await self._task
-            except asyncio.CancelledError:
-                pass
-        self._task = None
+        await self._stop_poller()
         if self._fallback:
             await self._fallback.stop()
         logger.info("Massive source stopped")
+
+    async def _stop_poller(self) -> None:
+        task, self._task = self._task, None
+        if task and task is not asyncio.current_task() and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
     async def add_ticker(self, ticker: str) -> None:
         if self._fallback:
@@ -165,7 +177,7 @@ class MassiveDataSource(MarketDataSource):
         self._tickers.append(ticker)
         if self._mode == "eod":
             self._apply_eod([ticker])  # whole-market data is already in memory
-        else:
+        elif self._interval <= self._base_interval:  # never cut a rate-limit backoff short
             self._wakeup.set()  # poll now instead of waiting up to a full interval
 
     async def remove_ticker(self, ticker: str) -> None:
@@ -203,6 +215,12 @@ class MassiveDataSource(MarketDataSource):
             except MassiveCallError as err:
                 if err.kind is ErrorKind.NOT_FOUND:
                     return False
+                if err.kind is ErrorKind.AUTH:
+                    await self._fall_back(f"api key rejected: {err}")
+                    return await self._fallback.validate_ticker(ticker)
+                if err.kind is ErrorKind.FORBIDDEN and self._requested == "auto":
+                    self._switch_to_eod(err)
+                    self._wakeup.set()  # load the end-of-day data now
                 raise MarketDataError(f"Could not validate {ticker}: {err}") from err
         return bool(snap) and getattr(snap, "ticker", None) == ticker
 
@@ -212,6 +230,8 @@ class MassiveDataSource(MarketDataSource):
         delay = first_delay
         while True:
             await self._sleep(delay)
+            if self._fallback:  # validate_ticker handed over while we slept
+                return
             try:
                 if self._mode == "snapshot":
                     await self._poll_snapshot()
@@ -224,7 +244,11 @@ class MassiveDataSource(MarketDataSource):
                 if err.kind is ErrorKind.AUTH:
                     await self._fall_back(f"api key rejected: {err}")
                     return  # nothing will work until the key is fixed
-                if err.kind is ErrorKind.FORBIDDEN and self._mode == "snapshot":
+                if (
+                    err.kind is ErrorKind.FORBIDDEN
+                    and self._mode == "snapshot"
+                    and self._requested == "auto"
+                ):
                     self._switch_to_eod(err)
                     delay = 0.0
                     continue
@@ -248,9 +272,7 @@ class MassiveDataSource(MarketDataSource):
     # --- Snapshot mode ---
 
     async def _poll_snapshot(self) -> int:
-        tickers = list(self._tickers)
-        if not tickers:
-            return 0
+        tickers = list(self._tickers) or [PROBE_TICKER]  # writes are filtered below
         snaps = await self._call(
             self._client.get_snapshot_all, SnapshotMarketType.STOCKS.value, tickers
         )
@@ -272,8 +294,11 @@ class MassiveDataSource(MarketDataSource):
 
     async def _refresh_eod(self) -> None:
         """Load the last two trading sessions (whole market) and publish tracked tickers."""
+        first_load = not self._eod_closes
         last_day: date | None = None
+        latest: dict[str, float] = {}
         prev: dict[str, float] | None = None
+        refused: MassiveCallError | None = None
         day = datetime.now(NEW_YORK).date()
         for _ in range(10):  # weekends are skipped for free; holidays cost one call each
             day -= timedelta(days=1)
@@ -281,28 +306,37 @@ class MassiveDataSource(MarketDataSource):
                 continue
             try:
                 bars = await self._call(self._client.get_grouped_daily_aggs, day.isoformat(), True)
-            except MassiveCallError:
-                if last_day is None:
+            except MassiveCallError as err:
+                if last_day is not None:
+                    logger.warning("Massive: could not load the prior session")
+                    break
+                if err.kind is not ErrorKind.FORBIDDEN:
                     raise
-                logger.warning("Massive: could not load the prior session; no daily baseline")
-                break
+                refused = err  # often the newest session before its release: try older ones
+                continue
             closes = {b.ticker: b.close for b in bars if b.ticker and b.close}
             if not closes:
                 continue
             if last_day is None:
-                # Publish the latest closes at once; the slow (rate-limited) second call
-                # below only adds the previous-close baseline.
-                last_day, self._eod_closes = day, closes
-                self._eod_ts = datetime.combine(day, dtime(16, 0), tzinfo=NEW_YORK).timestamp()
-                self._apply_eod(self._tickers)
+                last_day, latest = day, closes
+                if first_load:
+                    # Publish at once; the slow (rate-limited) second call below only
+                    # adds the previous-close baseline.
+                    self._publish_eod(day, closes, {})
             else:
                 prev = closes
                 break
         if last_day is None:
-            raise MassiveCallError(ErrorKind.OTHER, "no grouped daily bars in the last 10 days")
+            raise refused or MassiveCallError(
+                ErrorKind.OTHER, "no grouped daily bars in the last 10 days"
+            )
 
-        self._eod_prev = prev or {}
-        self._apply_eod(self._tickers)
+        if prev is None:  # reuse what is known: same session, or the one just superseded
+            if last_day == self._eod_day:
+                prev = self._eod_prev
+            else:
+                prev = {} if first_load else self._eod_closes
+        self._publish_eod(last_day, latest, prev)
         level = logging.WARNING if last_day != self._eod_day else logging.DEBUG  # once per session
         self._eod_day = last_day
         logger.log(
@@ -311,12 +345,18 @@ class MassiveDataSource(MarketDataSource):
             last_day,
         )
 
+    def _publish_eod(self, day: date, closes: dict[str, float], prev: dict[str, float]) -> None:
+        self._eod_closes, self._eod_prev = closes, prev
+        self._eod_ts = datetime.combine(day, dtime(16, 0), tzinfo=NEW_YORK).timestamp()
+        self._apply_eod(self._tickers)
+
     def _apply_eod(self, tickers: list[str]) -> None:
         for ticker in tickers:
             close = self._eod_closes.get(ticker)
             if close:
+                prev = self._eod_prev.get(ticker)
                 self._cache.update(
-                    ticker, close, self._eod_ts, prev_close=self._eod_prev.get(ticker)
+                    ticker, close, self._eod_ts, prev_close=prev, clear_prev_close=prev is None
                 )
 
     # --- Calling the SDK, backoff, mode switching ---
@@ -349,18 +389,28 @@ class MassiveDataSource(MarketDataSource):
         self._last_error = f"{err.kind.value}: {err}"
         if err.kind is ErrorKind.RATE_LIMIT:
             self._interval = min(self._interval * 2, MAX_BACKOFF)
+            self._wakeup.clear()  # a ticker added earlier must not cut the wait short
             logger.warning("Massive rate limited; polling every %.0fs", self._interval)
         else:
             logger.warning("Massive call failed (%s): %s", err.kind.value, err)
 
     async def _fall_back(self, reason: str) -> None:
         """The key stopped working: hand over to a simulator so prices keep moving."""
+        if self._fallback:
+            return
         self._degraded = reason
         self._last_error = reason
         logger.error("Massive source degraded (%s); falling back to the simulator", reason)
         tickers = list(self._tickers)
-        self._fallback = SimulatorDataSource(self._cache, degraded_reason=reason)
-        await self._fallback.start(tickers)
+        fallback = SimulatorDataSource(
+            self._cache,
+            seed=self._fallback_seed,
+            degraded_reason=reason,
+            resume_from_cache=True,  # carry on from the last real prices
+        )
+        await fallback.start(tickers)
+        self._fallback = fallback
+        await self._stop_poller()
 
     def _switch_to_eod(self, err: MassiveCallError) -> None:
         logger.warning("Massive plan has no snapshot access (%s); using end-of-day data", err)

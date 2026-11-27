@@ -20,26 +20,36 @@ One Docker container, one port (8000):
 - **Market data:** built-in GBM simulator by default; Massive (Polygon.io) REST polling if `MASSIVE_API_KEY` is set
 - **LLM:** LiteLLM → OpenRouter → Cerebras (`gpt-oss-120b`) with structured outputs
 
-## Configuration
+## Run
 
-Create a `.env` in the project root:
+Needs Docker Desktop. Create a `.env` in the project root (see `.env.example`):
 
 ```bash
 OPENROUTER_API_KEY=your-key   # required for AI chat
-MASSIVE_API_KEY=              # leave empty for now (see Status); the simulator is used
+MASSIVE_API_KEY=              # leave empty to use the simulator (see Status)
 LLM_MOCK=false                # true = deterministic mock LLM (testing, no network)
 ```
+
+Write values without quotes or inline comments: Docker reads them literally. Then:
+
+```bash
+scripts/start_mac.sh --build --open   # build and run at http://localhost:8000
+scripts/stop_mac.sh                   # stop; data stays in the finally-data volume
+```
+
+Use `--build` again after code changes. The port is published on `127.0.0.1` only, because the
+app has no login.
 
 ## Status
 
 | Component | State |
 |---|---|
 | Market data: simulator, price cache, SSE | Complete — see `planning/MARKET_DATA_SUMMARY.md` |
-| Market data: Massive (real prices) | Not ready — open defects and untested against the live service, so leave `MASSIVE_API_KEY` empty |
-| Portfolio, watchlist, chat APIs | Planned |
-| Frontend | Design foundation only (`frontend/src/`) |
-| Docker and start/stop scripts | Planned |
-| Playwright E2E tests | Planned |
+| Market data: Massive (real prices) | Review findings fixed; never run against the live service (no key yet) |
+| Database, portfolio, watchlist and chat APIs | Complete |
+| Frontend | Complete |
+| Docker and start/stop scripts | Complete |
+| Playwright E2E tests | Complete (mock LLM) |
 
 ## Development
 
@@ -52,11 +62,26 @@ uv run --extra dev ruff check .
 uv run --extra dev market_data_demo.py   # market data demo
 ```
 
-Once the Docker build lands, the app will run with `scripts/start_mac.sh` and be served at <http://localhost:8000>.
+Frontend (from `frontend/`):
+
+```bash
+npm ci
+npm test
+npm run build    # static export in frontend/out
+```
+
+End-to-end tests (from `test/`; they use their own container and volume on port 8010):
+
+```bash
+docker build -t finally ..
+npm ci && npx playwright install chromium
+npx playwright test
+```
 
 ## Documentation
 
 - `planning/PLAN.md` — full project specification (source of truth)
+- `planning/CONTRACTS.md` — API, data layer and test selector contracts
 - `planning/OUI_FORMAT.md` — openUI visual standard (logo, colours, fonts, components)
 - `planning/MARKET_DATA_SUMMARY.md` — completed market data component
 - `planning/archive/MARKET_DATA_REVIEW.md` — latest market data code review and open items

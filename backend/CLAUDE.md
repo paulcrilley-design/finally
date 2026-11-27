@@ -41,7 +41,7 @@ from app.market import PriceCache, PriceUpdate, MarketDataSource, create_market_
 - A price of `None` means unknown: reject the trade, never substitute a value.
 - Sources drop invalid symbols passed to `start()`.
 - Nothing loads `.env`; the app or Docker must provide environment variables.
-- The Massive path has known defects (`planning/archive/MARKET_DATA_REVIEW.md`); develop with the simulator.
+- The Massive path has never run against the live service; develop with the simulator.
 
 ### SSE Streaming
 
