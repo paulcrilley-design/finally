@@ -33,6 +33,7 @@ const AFTER_BUY = {
 
 function stubFetch(status = 200) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url === "/api/portfolio/history") return Response.json({ history: [] }, { status });
     if (url === "/api/portfolio") return Response.json(PORTFOLIO, { status });
     if (url === "/api/portfolio/trade") {
       const { quantity, side, ticker } = JSON.parse(init!.body as string);
@@ -236,6 +237,31 @@ describe("Page", () => {
     expect(priceCell("PYPL")).toHaveTextContent("65.00");
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Remove AAPL" })));
     expect(screen.queryByRole("rowheader", { name: "AAPL" })).not.toBeInTheDocument();
+  });
+
+  it("charts the first ticker, then the one clicked, and the first again if removed", async () => {
+    const { source } = await renderLoaded();
+    expect(screen.getByRole("heading", { name: "AAPL price" })).toBeInTheDocument();
+    expect(screen.getByText("Waiting for AAPL prices")).toBeInTheDocument();
+
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "MSFT" })));
+    expect(screen.getByRole("heading", { name: "MSFT price" })).toBeInTheDocument();
+    act(() => source.emitMessage(JSON.stringify({ MSFT: { price: 420, timestamp: 5 } })));
+    expect(screen.getByText(/Latest \$420\.00/)).toBeInTheDocument();
+
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "AAPL" })));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Remove AAPL" })));
+    expect(screen.getByRole("heading", { name: "GOOGL price" })).toBeInTheDocument();
+  });
+
+  it("reloads the value history after a trade", async () => {
+    const fetchMock = stubFetch();
+    await renderLoaded();
+    const requests = () =>
+      fetchMock.mock.calls.filter(([url]) => url === "/api/portfolio/history").length;
+    const before = requests();
+    await submitTrade("2");
+    expect(requests()).toBeGreaterThan(before);
   });
 
   it("closes the stream when the page is left", async () => {

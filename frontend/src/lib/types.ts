@@ -49,3 +49,5 @@ export type TradeResponse = {
   trade: TradeOrder & { price: number };
   portfolio: Portfolio;
 };
+
+export type ValuePoint = { recorded_at: string; total_value: number };

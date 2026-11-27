@@ -4,15 +4,20 @@ import { useState, type ReactNode } from "react";
 
 import { AddTicker } from "@/components/AddTicker";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
+import { Heatmap } from "@/components/Heatmap";
 import { PortfolioSummary } from "@/components/PortfolioSummary";
 import { PositionsTable } from "@/components/PositionsTable";
+import { PriceChart } from "@/components/PriceChart";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { TradeBar } from "@/components/TradeBar";
 import { Eyebrow, HEADING, Panel, SUBHEADING } from "@/components/ui";
+import { ValueChart } from "@/components/ValueChart";
 import { Watchlist } from "@/components/Watchlist";
+import { heatmapTiles } from "@/lib/heatmap";
 import { useMarket } from "@/lib/useMarket";
 import { usePortfolio } from "@/lib/usePortfolio";
+import { useValueHistory } from "@/lib/useValueHistory";
 import { valuePortfolio } from "@/lib/valuation";
 
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
@@ -29,10 +34,15 @@ function Section({ id, title, children }: { id: string; title: string; children:
 }
 
 export default function Page() {
-  const { rows, quotes, status, error, addTicker, removeTicker } = useMarket();
+  const { rows, quotes, history, status, error, addTicker, removeTicker } = useMarket();
   const { portfolio, failed, trade } = usePortfolio(status);
   const valued = portfolio && valuePortfolio(portfolio, quotes);
   const [removeError, setRemoveError] = useState("");
+  const values = useValueHistory(portfolio);
+  const [chosen, setChosen] = useState("");
+  // The chosen ticker while it is watched, otherwise the first one.
+  const watched = rows?.map((row) => row.quote.ticker) ?? [];
+  const selected = watched.includes(chosen) ? chosen : watched[0];
 
   async function remove(ticker: string) {
     setRemoveError("");
@@ -75,15 +85,35 @@ export default function Page() {
                 {removeError}
               </p>
             )}
-            <Watchlist rows={rows} error={error} onRemove={remove} />
+            <Watchlist
+              rows={rows}
+              error={error}
+              onRemove={remove}
+              history={history}
+              selected={selected}
+              onSelect={setChosen}
+            />
           </Panel>
         </section>
         <div className="grid min-w-0 content-start gap-6">
+          <Section id="chart" title={selected ? `${selected} price` : "Price"}>
+            {selected ? (
+              <PriceChart ticker={selected} points={history[selected] ?? []} />
+            ) : (
+              <p className="text-sm text-gray-text">No ticker to chart</p>
+            )}
+          </Section>
           <Section id="trade" title="Trade">
             <TradeBar onTrade={trade} />
           </Section>
           <Section id="positions" title="Positions">
             <PositionsTable positions={valued?.positions ?? null} failed={failed} />
+          </Section>
+          <Section id="heatmap" title="Heatmap">
+            <Heatmap tiles={heatmapTiles(valued?.positions ?? [])} />
+          </Section>
+          <Section id="value" title="Portfolio value">
+            <ValueChart history={values.history} failed={values.failed} />
           </Section>
         </div>
       </main>

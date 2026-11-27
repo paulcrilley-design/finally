@@ -16,3 +16,13 @@ vi.mock("next/image", () => ({
     return createElement("img", { ...props, src: typeof src === "string" ? src : "logo.png" });
   },
 }));
+
+// jsdom has no ResizeObserver, which the responsive charts need.
+vi.stubGlobal(
+  "ResizeObserver",
+  class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
+);
