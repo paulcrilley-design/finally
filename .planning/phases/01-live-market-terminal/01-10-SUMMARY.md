@@ -18,15 +18,23 @@ requirements-completed: []
   and typecheck passed.
 - No hex colour in `frontend/src/components`; no remote address in `frontend/src` sources.
 - `ConnectionStatus.tsx` needed no change (already a 14 px semibold label).
-- Not run: build, server or browser.
+- Build, server and browser were run afterwards (below).
 
-## Pending end-of-phase checks (full wording in 01-10-PLAN.md)
+## End-of-phase checks (run by Claude on the real build, at the owner's request)
 
-- [ ] Build and run: no login, title, favicon, header, ten tickers in order, flashes, footer,
-      `db/finally.db`. Keep `MASSIVE_API_KEY` empty.
-- [ ] Skip link with teal outline, no horizontal scroll at 375 px, reduced motion.
-- [ ] Ctrl+C with the page open ends in about 3 s; Reconnecting, Disconnected, recovery.
-- [ ] `/api/health` body, and no request leaves localhost.
+- [ ] Build and run: passed for no login, title, header, ten tickers in order, live price and day
+      change, arrows and 0.5 s flash, footer, fonts, icon served (200). Open for the owner: that
+      `db/finally.db` appears (a temporary database was used because a deny rule blocked access),
+      and visual judgement of layout, flash and tab icon.
+- [x] Skip link, 375 px (no horizontal scroll) and reduced motion. First run found the skip link
+      outline hidden (drawn off screen and under the header); fixed in 27a139b by drawing it
+      inside the link, then confirmed in the browser.
+- [x] Stop with the page open: exited in 3.27 s and logged "Application shutdown complete";
+      Reconnecting, then Disconnected 10.0 s later, prices kept, reconnected without a reload.
+- [x] `/api/health` ok, simulator, 10 tickers; every page request went to `localhost:8000`.
+
+`MASSIVE_API_KEY` was forced empty for the server process; the owner's env file was not checked.
+After the fix: 54 frontend tests, lint, typecheck and build passed.
 
 ## Notes
 
