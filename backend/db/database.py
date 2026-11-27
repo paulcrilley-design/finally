@@ -112,3 +112,16 @@ def list_watchlist(path: Path, user_id: str) -> list[str]:
             (user_id,),
         )
         return [row["ticker"] for row in rows]
+
+
+def is_healthy(path: Path) -> bool:
+    """Whether the database can be read. Opens read-only, so it never creates a file."""
+    try:
+        conn = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+        try:
+            conn.execute("SELECT 1 FROM users_profile LIMIT 1").fetchone()
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return False
+    return True

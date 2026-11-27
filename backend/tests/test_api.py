@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import httpx
@@ -11,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.identity import get_current_user
 from app.main import create_app
+from app.routes.health import market_state
 from db import connect
 
 from .market.helpers import wait_until
@@ -125,3 +127,81 @@ def test_missing_static_dir_serves_the_api_only(tmp_path: Path):
         assert response.status_code == 404
         assert response.json() == {"detail": "Not Found"}
         assert client.get("/api/watchlist").status_code == 200
+
+
+HEALTHY = {
+    "status": "ok",
+    "market_data": {"mode": "simulator", "status": "ok", "tickers": 10},
+}
+
+
+class StubSource:
+    def __init__(self, **status):
+        self._status = status
+
+    def status(self) -> dict:
+        return self._status
+
+
+def test_health_of_a_fresh_app(static_dir: Path):
+    with TestClient(create_app(static_dir=static_dir)) as client:
+        response = client.get("/api/health")
+        assert response.status_code == 200
+        assert response.json() == HEALTHY
+
+
+@pytest.mark.parametrize(("age", "expected"), [(9.9, "ok"), (10.0, "ok"), (10.1, "degraded")])
+def test_market_state_staleness_boundary(age: float, expected: str):
+    status = {"mode": "simulator", "degraded": False, "tickers": 10}
+    assert market_state(status, 1000.0, 1000.0 + age) == expected
+
+
+@pytest.mark.parametrize(
+    ("mode", "degraded", "tickers", "newest", "expected"),
+    [
+        ("simulator", False, 0, None, "ok"),
+        ("simulator", False, 10, None, "degraded"),
+        ("simulator", True, 10, 1000.0, "degraded"),
+        ("massive-eod", False, 10, 1.0, "ok"),
+    ],
+)
+def test_market_state_rules(mode, degraded, tickers, newest, expected):
+    status = {"mode": mode, "degraded": degraded, "tickers": tickers}
+    assert market_state(status, newest, 1000.0) == expected
+
+
+def test_health_degraded_source_hides_the_reason(static_dir: Path):
+    app = create_app(static_dir=static_dir)
+    with TestClient(app) as client:
+        app.state.source = StubSource(
+            mode="simulator", degraded=True, degraded_reason="secret-reason", tickers=10
+        )
+        response = client.get("/api/health")
+        assert response.status_code == 200
+        assert response.json()["status"] == "degraded"
+        assert response.json()["market_data"]["status"] == "degraded"
+        assert "secret-reason" not in response.text
+
+
+def test_health_reports_a_missing_database_without_recreating_it(app_env: Path, static_dir: Path):
+    with TestClient(create_app(static_dir=static_dir)) as client:
+        app_env.unlink()
+        response = client.get("/api/health")
+        assert response.status_code == 200
+        assert response.json() == {**HEALTHY, "status": "degraded"}
+        assert not app_env.exists()
+
+
+def test_health_concurrent_calls_change_nothing(app_env: Path, static_dir: Path):
+    def rows() -> list[tuple]:
+        with connect(app_env) as conn:
+            query = "SELECT cash_balance, (SELECT COUNT(*) FROM watchlist) FROM users_profile"
+            return [tuple(row) for row in conn.execute(query)]
+
+    with TestClient(create_app(static_dir=static_dir)) as client:
+        before = rows()
+        with ThreadPoolExecutor(max_workers=20) as pool:
+            responses = list(pool.map(lambda _: client.get("/api/health"), range(20)))
+        assert [r.status_code for r in responses] == [200] * 20
+        assert all(r.json() == HEALTHY for r in responses)
+        assert rows() == before
