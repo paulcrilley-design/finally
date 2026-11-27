@@ -217,3 +217,4 @@ frontend/next-env.d.ts
 db/*.db*
 test/test-results/
 test/playwright-report/
+.claude/settings.local.json
