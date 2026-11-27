@@ -209,3 +209,4 @@ __marimo__/
 
 # Playwright test dependencies
 test/node_modules/
+test/test-results/
