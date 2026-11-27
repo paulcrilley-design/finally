@@ -2,7 +2,7 @@
 # Stop FinAlly (macOS/Linux). Safe to run more than once. Your data volume is kept.
 set -euo pipefail
 
-CONTAINER="${FINALLY_CONTAINER:-finally}"
+CONTAINER="${FINALLY_CONTAINER:-finally-gsd}"
 
 fail() {
   echo "Error: $*" >&2

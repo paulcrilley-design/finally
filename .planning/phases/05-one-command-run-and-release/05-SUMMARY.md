@@ -31,6 +31,11 @@ requirements-completed: [APP-04, UI-02, OPS-01, OPS-02, TEST-01, TEST-02, TEST-0
   data is unchanged. Regression test added (backend 264 passed). One live question on a copy of
   the volume was answered inside the container.
 
+- The default image, container and volume names matched the `agent-teams` branch, so the two
+  shared data. They are now `finally-gsd`, `finally-gsd`, `finally-gsd-data`. The old volume was
+  copied (checksums matched) and left in place. `planning/PLAN.md` section 11 still shows
+  `finally-data`.
+
 ## Verification
 
 - Backend 263 passed, ruff clean; frontend 86 passed, lint and typecheck passed; production

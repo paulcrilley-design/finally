@@ -5,9 +5,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-IMAGE="${FINALLY_IMAGE:-finally}"
-CONTAINER="${FINALLY_CONTAINER:-finally}"
-VOLUME="${FINALLY_VOLUME:-finally-data}"
+# Names are specific to this branch, so it does not share Docker data or images with others.
+IMAGE="${FINALLY_IMAGE:-finally-gsd}"
+CONTAINER="${FINALLY_CONTAINER:-finally-gsd}"
+VOLUME="${FINALLY_VOLUME:-finally-gsd-data}"
 PORT="${FINALLY_PORT:-8000}"
 ENV_FILE="${FINALLY_ENV_FILE-$ROOT/.env}" # set to empty to run without one
 

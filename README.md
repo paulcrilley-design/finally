@@ -32,7 +32,7 @@ scripts/stop_mac.sh
 The app is then at <http://localhost:8000>, reachable from this machine only. Both scripts are safe to run twice.
 
 - The first start builds the image. After changing code, run `scripts/start_mac.sh --build`.
-- Cash, positions, watchlist, trades and chat are kept in the Docker volume `finally-data`, which stopping does not remove. It is separate from `db/finally.db`, used when running without Docker.
+- Cash, positions, watchlist, trades and chat are kept in the Docker volume `finally-gsd-data`, which stopping does not remove. The image and container are named `finally-gsd`; these names differ from the `finally` ones used elsewhere, so branches do not share data. It is separate from `db/finally.db`, used when running without Docker.
 - `.env` is mounted read-only into the container, never built into the image. Restart after editing it. On Linux it must be readable by user ID 1000.
 - If port 8000 is busy the script says so. `FINALLY_PORT` picks another; `FINALLY_CONTAINER`, `FINALLY_VOLUME`, `FINALLY_IMAGE` and `FINALLY_ENV_FILE` override the other defaults.
 
