@@ -43,6 +43,15 @@ LLM_MOCK=false                # true = deterministic mock LLM (testing, no netwo
 
 ## Development
 
+Run the app (from the repository root):
+
+```bash
+cd frontend && npm install && npm run build
+cd ../backend && uv run uvicorn app.server:app --port 8000 --timeout-graceful-shutdown 3
+```
+
+The app is then at <http://localhost:8000>. The root `.env` is loaded without overriding variables already set in your shell. Uvicorn keeps its default bind, so the app is reachable from this machine only.
+
 Backend (from `backend/`):
 
 ```bash
