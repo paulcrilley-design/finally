@@ -1,0 +1,10 @@
+[
+  {"quantity": 10, "avg_cost": 190, "price": 191.5, "market_value": 1915.0, "unrealized_pnl": 15.0, "pnl_percent": 0.79},
+  {"quantity": 10, "avg_cost": 190, "price": 189.09, "market_value": 1890.9, "unrealized_pnl": -9.1, "pnl_percent": -0.48},
+  {"quantity": 0.5, "avg_cost": 100.01, "price": 100.01, "market_value": 50.01, "unrealized_pnl": 0.0, "pnl_percent": 0.0},
+  {"quantity": 0.0001, "avg_cost": 190, "price": 190, "market_value": 0.02, "unrealized_pnl": 0.0, "pnl_percent": 0.0},
+  {"quantity": 3, "avg_cost": 33.3333, "price": 40, "market_value": 120.0, "unrealized_pnl": 20.0, "pnl_percent": 20.0},
+  {"quantity": 2.5, "avg_cost": 1.005, "price": 1.01, "market_value": 2.53, "unrealized_pnl": 0.02, "pnl_percent": 0.5},
+  {"quantity": 1, "avg_cost": 200, "price": 199.99, "market_value": 199.99, "unrealized_pnl": -0.01, "pnl_percent": -0.01},
+  {"quantity": 7, "avg_cost": 123.4567, "price": null, "market_value": null, "unrealized_pnl": null, "pnl_percent": null}
+]

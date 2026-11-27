@@ -17,6 +17,7 @@ TABLES = {
     "trades",
     "portfolio_snapshots",
     "chat_messages",
+    "last_prices",
 }
 # Table name to the other required columns and a valid value for each.
 USER_OWNED = {
@@ -61,7 +62,7 @@ def _snapshot(path: Path) -> dict[str, list[tuple]]:
     return {table: _query(path, f"SELECT * FROM {table} ORDER BY rowid") for table in TABLES}
 
 
-def test_fresh_database_has_six_tables_and_seed(db_path: Path):
+def test_fresh_database_has_its_tables_and_seed(db_path: Path):
     tables = _query(db_path, "SELECT name FROM sqlite_master WHERE type = 'table'")
     assert {name for (name,) in tables} == TABLES
     assert _query(db_path, "SELECT id, cash_balance FROM users_profile") == [("default", 10000.0)]

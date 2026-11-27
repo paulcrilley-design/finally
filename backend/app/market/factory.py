@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Mapping
 
 from .cache import PriceCache
 from .interface import MarketDataSource, MarketDataUnavailableError
@@ -36,7 +37,9 @@ def _env_seed() -> int | None:
     return seed
 
 
-def create_market_data_source(price_cache: PriceCache) -> MarketDataSource:
+def create_market_data_source(
+    price_cache: PriceCache, resume: Mapping[str, tuple[float, float]] | None = None
+) -> MarketDataSource:
     """Build (but do not start) the source selected by the environment.
 
     MASSIVE_API_KEY set and non-empty, and MARKET_FORCE_SIMULATOR not true
@@ -56,13 +59,17 @@ def create_market_data_source(price_cache: PriceCache) -> MarketDataSource:
             requested_mode=os.environ.get("MASSIVE_MODE", "auto").strip().lower() or "auto",
         )
     logger.info("Market data source: GBM simulator")
-    return SimulatorDataSource(price_cache=price_cache, seed=_env_seed())
+    return SimulatorDataSource(price_cache=price_cache, seed=_env_seed(), resume=resume)
 
 
-async def start_market_data(price_cache: PriceCache, tickers: list[str]) -> MarketDataSource:
+async def start_market_data(
+    price_cache: PriceCache,
+    tickers: list[str],
+    resume: Mapping[str, tuple[float, float]] | None = None,
+) -> MarketDataSource:
     """Create and start a source. If Massive cannot work (bad key), fall back to the
     simulator so the app stays usable; /api/health then reports degraded=true."""
-    source = create_market_data_source(price_cache)
+    source = create_market_data_source(price_cache, resume)
     try:
         await source.start(tickers)
         return source
@@ -70,7 +77,10 @@ async def start_market_data(price_cache: PriceCache, tickers: list[str]) -> Mark
         logger.error("Massive unavailable (%s); falling back to the simulator", err)
         await source.stop()
         fallback = SimulatorDataSource(
-            price_cache=price_cache, seed=_env_seed(), degraded_reason=str(err)
+            price_cache=price_cache,
+            seed=_env_seed(),
+            degraded_reason=str(err),
+            resume=resume,
         )
         await fallback.start(tickers)
         return fallback

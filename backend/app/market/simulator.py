@@ -7,6 +7,7 @@ import hashlib
 import logging
 import math
 import random
+from collections.abc import Mapping
 
 import numpy as np
 
@@ -46,7 +47,10 @@ class GBMSimulator:
         dt: float = DEFAULT_DT,
         event_probability: float = 0.001,
         seed: int | None = None,
+        resume: Mapping[str, tuple[float, float]] | None = None,
     ) -> None:
+        # {ticker: (price, previous close)} to continue from, for the initial tickers only.
+        self._resume = dict(resume or {})
         self._dt = dt
         self._event_prob = event_probability
         self._np_rng = np.random.default_rng(seed)
@@ -60,6 +64,7 @@ class GBMSimulator:
 
         for ticker in tickers:
             self._add_ticker_internal(ticker)
+        self._resume.clear()
         self._rebuild_cholesky()
 
     # --- Public API ---
@@ -134,10 +139,11 @@ class GBMSimulator:
     def _add_ticker_internal(self, ticker: str) -> None:
         if ticker in self._prices:
             return
-        price = self._starting_price(ticker)
+        start = self._starting_price(ticker)
+        price, open_price = self._resume.get(ticker, (start, start))
         self._tickers.append(ticker)
         self._prices[ticker] = price
-        self._open_prices[ticker] = price
+        self._open_prices[ticker] = open_price
         self._params[ticker] = TICKER_PARAMS.get(ticker, dict(DEFAULT_PARAMS))
 
     def _rebuild_cholesky(self) -> None:
@@ -186,7 +192,9 @@ class SimulatorDataSource(MarketDataSource):
         event_probability: float = 0.001,
         seed: int | None = None,
         degraded_reason: str | None = None,
+        resume: Mapping[str, tuple[float, float]] | None = None,
     ) -> None:
+        self._resume = resume
         self._cache = price_cache
         self._interval = update_interval
         self._event_prob = event_probability
@@ -211,7 +219,9 @@ class SimulatorDataSource(MarketDataSource):
         if self._task is not None and not self._task.done():
             raise RuntimeError("SimulatorDataSource already started")
         names = clean_tickers(tickers)
-        self._sim = GBMSimulator(names, event_probability=self._event_prob, seed=self._seed)
+        self._sim = GBMSimulator(
+            names, event_probability=self._event_prob, seed=self._seed, resume=self._resume
+        )
         for ticker in names:  # seed the cache so SSE and trades have prices at once
             self._write(ticker, self._sim.get_price(ticker))
         self._task = asyncio.create_task(self._run_loop(), name="simulator-loop")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from collections.abc import AsyncIterator
@@ -9,15 +10,36 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 
+from app.errors import ApiError, api_error_handler, invalid_request_handler
 from app.market import PriceCache, create_stream_router, start_market_data
-from app.routes import health_router, watchlist_router
-from db import init_db, tracked_tickers
+from app.routes import health_router, portfolio_router, watchlist_router
+from db import init_db, load_prices, save_prices, tracked_tickers
 
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+SAVE_PRICES_EVERY = 5.0  # seconds
+
+
+def _save_current_prices(db_path: Path, cache: PriceCache) -> None:
+    if not db_path.is_file():  # never recreate a database that has gone missing
+        return
+    save_prices(
+        db_path,
+        {t: (u.price, u.prev_close or u.price) for t, u in cache.get_all().items()},
+    )
+
+
+async def _keep_saving_prices(db_path: Path, cache: PriceCache) -> None:
+    while True:
+        await asyncio.sleep(SAVE_PRICES_EVERY)
+        try:
+            await asyncio.to_thread(_save_current_prices, db_path, cache)
+        except Exception:
+            logger.exception("Could not save prices")
 
 
 def create_app(db_path: Path | None = None, static_dir: Path | None = None) -> FastAPI:
@@ -33,19 +55,31 @@ def create_app(db_path: Path | None = None, static_dir: Path | None = None) -> F
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         init_db(db_path)
-        source = await start_market_data(cache, tracked_tickers(db_path))
+        source = await start_market_data(
+            cache, tracked_tickers(db_path), resume=load_prices(db_path)
+        )
         app.state.source = source
+        app.state.tracking_lock = asyncio.Lock()
+        saver = asyncio.create_task(_keep_saving_prices(db_path, cache))
         try:
             yield
         finally:
+            saver.cancel()
+            try:
+                _save_current_prices(db_path, cache)
+            except Exception:
+                logger.exception("Could not save prices at shutdown")
             await source.stop()
 
     app = FastAPI(title="FinAlly", lifespan=lifespan)
     app.state.price_cache = cache
     app.state.db_path = db_path
+    app.add_exception_handler(ApiError, api_error_handler)
+    app.add_exception_handler(RequestValidationError, invalid_request_handler)
     # API routes first: the static mount matches every other path.
     app.include_router(health_router)
     app.include_router(watchlist_router)
+    app.include_router(portfolio_router)
     app.include_router(create_stream_router(cache))
 
     @app.api_route(
