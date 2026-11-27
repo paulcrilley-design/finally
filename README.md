@@ -36,8 +36,9 @@ LLM_MOCK=false                # true = deterministic mock LLM (testing, no netwo
 |---|---|
 | Market data: simulator, price cache, SSE | Complete — see `planning/MARKET_DATA_SUMMARY.md` |
 | Market data: Massive (real prices) | Not ready — open defects and untested against the live service, so leave `MASSIVE_API_KEY` empty |
-| Portfolio, watchlist, chat APIs | Planned |
-| Frontend | Design foundation only (`frontend/src/`) |
+| App server, database, watchlist (read) and health APIs | Complete |
+| Portfolio, trading, watchlist editing and chat APIs | Planned |
+| Frontend | Live watchlist page; trading, charts and chat planned |
 | Docker and start/stop scripts | Planned |
 | Playwright E2E tests | Planned |
 
@@ -51,6 +52,17 @@ cd ../backend && uv run uvicorn app.server:app --port 8000 --timeout-graceful-sh
 ```
 
 The app is then at <http://localhost:8000>. The root `.env` is loaded without overriding variables already set in your shell. Uvicorn keeps its default bind, so the app is reachable from this machine only.
+
+Health is at <http://localhost:8000/api/health>. Two optional variables change the defaults: `FINALLY_DB_PATH` (database file, default `db/finally.db`) and `FINALLY_STATIC_DIR` (frontend build, default `frontend/out`).
+
+Frontend (from the repository root; Node 22.22.2 or later in 22, 24.15 or later in 24, or 26 and later):
+
+```bash
+npm --prefix frontend ci
+npm --prefix frontend run test:unit
+npm --prefix frontend run lint
+npm --prefix frontend run typecheck
+```
 
 Backend (from `backend/`):
 
