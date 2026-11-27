@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Live Market Terminal** - Open the app in a browser and watch the default watchlist stream live prices
 - [x] **Phase 2: Trading and Positions** - Buy and sell at market price, manage the watchlist, and see correct cash, positions and P&L
 - [x] **Phase 3: Price and Portfolio Charts** - Sparklines, ticker chart, portfolio heatmap and value-over-time chart
-- [ ] **Phase 4: AI Copilot** - Chat that analyses the portfolio and executes reviewed trades and watchlist changes
+- [x] **Phase 4: AI Copilot** - Chat that analyses the portfolio and executes reviewed trades and watchlist changes
 - [ ] **Phase 5: One-Command Run and Release** - One script starts the container, data persists, layout adapts and all tests pass
 
 **Testing across phases:** every phase writes unit tests for what it builds. TEST-01 and TEST-02 are closed in Phase 5, once the logic they cover all exists.
@@ -115,7 +115,7 @@ Plans:
 
 **Decide in discussion**: retry and timeout handling; whether one failed action stops the rest; whether watchlist-only changes fail open when review fails
 **Notes**: Use the `cerebras` skill (LiteLLM, OpenRouter, `openrouter/openai/gpt-oss-120b`, structured outputs). Execute actions through the same services as the REST routes
-**Plans**: TBD
+**Plans**: 1 (`.planning/phases/04-ai-copilot/04-PLAN.md`; calls OpenRouter with `httpx`, not LiteLLM)
 **UI hint**: yes
 
 ### Phase 5: One-Command Run and Release
@@ -145,5 +145,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Live Market Terminal | 11/11 | Complete | 2026-11-27 |
 | 2. Trading and Positions | 1/1 | Complete | 2026-11-27 |
 | 3. Price and Portfolio Charts | 1/1 | Complete | 2026-11-27 |
-| 4. AI Copilot | 0/TBD | Not started | - |
+| 4. AI Copilot | 1/1 | Complete | 2026-11-27 |
 | 5. One-Command Run and Release | 0/TBD | Not started | - |

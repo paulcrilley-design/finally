@@ -43,15 +43,15 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### AI Chat
 
-- [ ] **CHAT-01**: User can ask about their portfolio and get a concise answer based on current holdings and prices
-- [ ] **CHAT-02**: User can ask the assistant to buy or sell, and approved trades execute without a confirmation step
-- [ ] **CHAT-03**: User can ask the assistant to add or remove watchlist tickers
-- [ ] **CHAT-04**: Proposed actions are checked by code, then by a second model that can only approve or reject; no trade executes if the review fails
-- [ ] **CHAT-05**: User sees executed and rejected actions inline, with reasons
-- [ ] **CHAT-06**: User sees conversation history and a loading indicator in a collapsible side panel
-- [ ] **CHAT-07**: User gets a clear message when the model call fails, returns bad output or has no API key
-- [ ] **CHAT-08**: Conversations are stored, and each call stays within the token budget (last 10 messages, compact context)
-- [ ] **CHAT-09**: With `LLM_MOCK=true`, chat and review are deterministic and make no network calls
+- [x] **CHAT-01**: User can ask about their portfolio and get a concise answer based on current holdings and prices
+- [x] **CHAT-02**: User can ask the assistant to buy or sell, and approved trades execute without a confirmation step
+- [x] **CHAT-03**: User can ask the assistant to add or remove watchlist tickers
+- [x] **CHAT-04**: Proposed actions are checked by code, then by a second model that can only approve or reject; no trade executes if the review fails
+- [x] **CHAT-05**: User sees executed and rejected actions inline, with reasons
+- [x] **CHAT-06**: User sees conversation history and a loading indicator in a collapsible side panel
+- [x] **CHAT-07**: User gets a clear message when the model call fails, returns bad output or has no API key
+- [x] **CHAT-08**: Conversations are stored, and each call stays within the token budget (last 10 messages, compact context)
+- [x] **CHAT-09**: With `LLM_MOCK=true`, chat and review are deterministic and make no network calls
 
 ### Look and Feel
 
@@ -119,15 +119,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PORT-02 | Phase 2 | Complete |
 | PORT-03 | Phase 3 | Complete |
 | PORT-04 | Phase 3 | Complete |
-| CHAT-01 | Phase 4 | Pending |
-| CHAT-02 | Phase 4 | Pending |
-| CHAT-03 | Phase 4 | Pending |
-| CHAT-04 | Phase 4 | Pending |
-| CHAT-05 | Phase 4 | Pending |
-| CHAT-06 | Phase 4 | Pending |
-| CHAT-07 | Phase 4 | Pending |
-| CHAT-08 | Phase 4 | Pending |
-| CHAT-09 | Phase 4 | Pending |
+| CHAT-01 | Phase 4 | Complete |
+| CHAT-02 | Phase 4 | Complete |
+| CHAT-03 | Phase 4 | Complete |
+| CHAT-04 | Phase 4 | Complete |
+| CHAT-05 | Phase 4 | Complete |
+| CHAT-06 | Phase 4 | Complete |
+| CHAT-07 | Phase 4 | Complete |
+| CHAT-08 | Phase 4 | Complete |
+| CHAT-09 | Phase 4 | Complete |
 | UI-01 | Phase 1 | Complete |
 | UI-02 | Phase 5 | Pending |
 | UI-03 | Phase 1 | Complete |

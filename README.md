@@ -18,7 +18,7 @@ One Docker container, one port (8000):
 - **Backend:** FastAPI (Python, managed with `uv`), REST under `/api/*`, SSE price stream at `/api/stream/prices`
 - **Database:** SQLite at `db/finally.db`, lazily initialised and seeded
 - **Market data:** built-in GBM simulator by default; Massive (Polygon.io) REST polling if `MASSIVE_API_KEY` is set
-- **LLM:** LiteLLM → OpenRouter → Cerebras (`gpt-oss-120b`) with structured outputs
+- **LLM:** OpenRouter over HTTP → Cerebras (`gpt-oss-120b`) with structured outputs
 
 ## Configuration
 
@@ -37,8 +37,8 @@ LLM_MOCK=false                # true = deterministic mock LLM (testing, no netwo
 | Market data: simulator, price cache, SSE | Complete — see `planning/MARKET_DATA_SUMMARY.md` |
 | Market data: Massive (real prices) | Not ready — open defects and untested against the live service, so leave `MASSIVE_API_KEY` empty |
 | App server, database, health, watchlist, portfolio and trading APIs | Complete |
-| Chat API | Planned |
-| Frontend | Live watchlist, trading, positions and charts; chat planned |
+| AI chat with second-model review | Complete |
+| Frontend | Complete for desktop; phone and tablet layout pass planned |
 | Docker and start/stop scripts | Planned |
 | Playwright E2E tests | Planned |
 
