@@ -38,7 +38,7 @@ LLM_MOCK=false                # true = deterministic mock LLM (testing, no netwo
 | Market data: Massive (real prices) | Not ready — open defects and untested against the live service, so leave `MASSIVE_API_KEY` empty |
 | App server, database, health, watchlist, portfolio and trading APIs | Complete |
 | Chat API | Planned |
-| Frontend | Live watchlist, trading and positions; charts and chat planned |
+| Frontend | Live watchlist, trading, positions and charts; chat planned |
 | Docker and start/stop scripts | Planned |
 | Playwright E2E tests | Planned |
 

@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Live Market Terminal** - Open the app in a browser and watch the default watchlist stream live prices
 - [x] **Phase 2: Trading and Positions** - Buy and sell at market price, manage the watchlist, and see correct cash, positions and P&L
-- [ ] **Phase 3: Price and Portfolio Charts** - Sparklines, ticker chart, portfolio heatmap and value-over-time chart
+- [x] **Phase 3: Price and Portfolio Charts** - Sparklines, ticker chart, portfolio heatmap and value-over-time chart
 - [ ] **Phase 4: AI Copilot** - Chat that analyses the portfolio and executes reviewed trades and watchlist changes
 - [ ] **Phase 5: One-Command Run and Release** - One script starts the container, data persists, layout adapts and all tests pass
 
@@ -98,7 +98,7 @@ Plans:
 
 **Decide in discussion**: snapshot retention or downsampling, and any cap on the history endpoint
 **Notes**: Recharts is the only charting library, including the treemap
-**Plans**: TBD
+**Plans**: 1 (`.planning/phases/03-price-and-portfolio-charts/03-PLAN.md`)
 **UI hint**: yes
 
 ### Phase 4: AI Copilot
@@ -144,6 +144,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Live Market Terminal | 11/11 | Complete | 2026-11-27 |
 | 2. Trading and Positions | 1/1 | Complete | 2026-11-27 |
-| 3. Price and Portfolio Charts | 0/TBD | Not started | - |
+| 3. Price and Portfolio Charts | 1/1 | Complete | 2026-11-27 |
 | 4. AI Copilot | 0/TBD | Not started | - |
 | 5. One-Command Run and Release | 0/TBD | Not started | - |

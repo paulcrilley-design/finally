@@ -21,8 +21,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **WATCH-01**: User can see watched tickers with live price and daily change %
 - [x] **WATCH-02**: User sees a fading flash and ▲/▼ arrow when a price changes
-- [ ] **WATCH-03**: User can see a sparkline per ticker, built up since page load
-- [ ] **WATCH-04**: User can click a ticker to see its larger price chart
+- [x] **WATCH-03**: User can see a sparkline per ticker, built up since page load
+- [x] **WATCH-04**: User can click a ticker to see its larger price chart
 - [x] **WATCH-05**: User can add a ticker
 - [x] **WATCH-06**: User can remove a ticker; one with an open position keeps being priced
 - [x] **WATCH-07**: User can see connection status (connected, reconnecting, disconnected), and the stream reconnects by itself
@@ -38,8 +38,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **PORT-01**: User can see total value and cash in the header, updating live
 - [x] **PORT-02**: User can see a positions table: quantity, average cost, price, unrealised P&L, % change
-- [ ] **PORT-03**: User can see a heatmap of positions sized by weight and coloured by P&L
-- [ ] **PORT-04**: User can see a chart of total portfolio value over time, recorded every 30 seconds and after each trade
+- [x] **PORT-03**: User can see a heatmap of positions sized by weight and coloured by P&L
+- [x] **PORT-04**: User can see a chart of total portfolio value over time, recorded every 30 seconds and after each trade
 
 ### AI Chat
 
@@ -106,8 +106,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | APP-05 | Phase 1 | Complete |
 | WATCH-01 | Phase 1 | Complete |
 | WATCH-02 | Phase 1 | Complete |
-| WATCH-03 | Phase 3 | Pending |
-| WATCH-04 | Phase 3 | Pending |
+| WATCH-03 | Phase 3 | Complete |
+| WATCH-04 | Phase 3 | Complete |
 | WATCH-05 | Phase 2 | Complete |
 | WATCH-06 | Phase 2 | Complete |
 | WATCH-07 | Phase 1 | Complete |
@@ -117,8 +117,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRADE-04 | Phase 2 | Complete |
 | PORT-01 | Phase 2 | Complete |
 | PORT-02 | Phase 2 | Complete |
-| PORT-03 | Phase 3 | Pending |
-| PORT-04 | Phase 3 | Pending |
+| PORT-03 | Phase 3 | Complete |
+| PORT-04 | Phase 3 | Complete |
 | CHAT-01 | Phase 4 | Pending |
 | CHAT-02 | Phase 4 | Pending |
 | CHAT-03 | Phase 4 | Pending |
