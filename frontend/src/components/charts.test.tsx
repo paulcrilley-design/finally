@@ -6,6 +6,7 @@ import type { Position } from "@/lib/types";
 
 import { Heatmap } from "./Heatmap";
 import { PriceChart } from "./PriceChart";
+import { valueDomain } from "./TimeChart";
 import { ValueChart } from "./ValueChart";
 
 function position(ticker: string, value: number | null, percent: number | null): Position {
@@ -82,5 +83,12 @@ describe("ValueChart", () => {
     const point = { recorded_at: "2026-01-01T10:00:00.000000+00:00", total_value: 10000 };
     rerender(<ValueChart history={[point]} failed={false} />);
     expect(container).toHaveTextContent("Latest recorded value $10,000.00, 1 point shown.");
+  });
+});
+
+describe("valueDomain", () => {
+  it("widens a nearly flat series and leaves others to the chart", () => {
+    expect(valueDomain([189.97, 189.99])).toEqual([189.95, 190.01]);
+    expect(valueDomain([100, 101])).toEqual(["auto", "auto"]);
   });
 });

@@ -10,6 +10,13 @@ const clock = new Intl.DateTimeFormat("en-GB", {
 
 const AXIS = { fill: "var(--gray-text)", fontSize: 12 };
 
+// A very flat series gets two cents of room each side, or the axis repeats its labels.
+export function valueDomain(values: number[]): [number | "auto", number | "auto"] {
+  const low = Math.round(Math.min(...values) * 100);
+  const high = Math.round(Math.max(...values) * 100);
+  return high - low < 4 ? [(low - 2) / 100, (high + 2) / 100] : ["auto", "auto"];
+}
+
 /** A dollar value over time. `time` is in milliseconds. */
 export function TimeChart({ points }: { points: { time: number; value: number }[] }) {
   return (
@@ -27,7 +34,7 @@ export function TimeChart({ points }: { points: { time: number; value: number }[
             minTickGap={32}
           />
           <YAxis
-            domain={["auto", "auto"]}
+            domain={valueDomain(points.map((point) => point.value))}
             tickFormatter={(value: number) => formatPrice(value)}
             tick={AXIS}
             stroke="var(--stroke)"

@@ -14,7 +14,9 @@ type CellProps = Partial<Tile> & { x?: number; y?: number; width?: number; heigh
 
 function Cell({ x = 0, y = 0, width = 0, height = 0, name, change, tone }: CellProps) {
   if (!tone) return <g />; // the treemap's root
-  const roomy = width >= 64 && height >= 40;
+  // The ticker needs less room than the percentage under it.
+  const named = width >= 28 && height >= 24;
+  const roomy = width >= 56 && height >= 40;
   return (
     <g>
       <rect
@@ -26,12 +28,14 @@ function Cell({ x = 0, y = 0, width = 0, height = 0, name, change, tone }: CellP
         stroke="var(--surface-strong)"
         strokeWidth={2}
       />
-      {roomy && (
+      {named && (
         <text x={x + 8} y={y + 18} className="fill-white text-xs font-semibold">
           {name}
-          <tspan x={x + 8} dy={16}>
-            {change}
-          </tspan>
+          {roomy && (
+            <tspan x={x + 8} dy={16}>
+              {change}
+            </tspan>
+          )}
         </text>
       )}
     </g>
