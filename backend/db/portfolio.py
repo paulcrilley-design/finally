@@ -103,7 +103,8 @@ def execute_trade(
         if side == "buy":
             if value > cash:
                 raise TradeError(
-                    "insufficient_cash", f"Not enough cash: this costs {value} and you have {cash}."
+                    "insufficient_cash",
+                    f"Not enough cash: this costs ${value:,.2f} and you have ${cash:,.2f}.",
                 )
             new_quantity = held + quantity
             avg_cost = _units((held * avg_cost + quantity * unit_price) / new_quantity)

@@ -12,7 +12,15 @@ from fastapi.testclient import TestClient
 from app.main import create_app
 from app.market.simulator import GBMSimulator
 from app.routes.portfolio import value_position
-from db import TradeError, connect, execute_trade, init_db, load_prices, read_portfolio
+from db import (
+    TradeError,
+    connect,
+    execute_trade,
+    init_db,
+    load_prices,
+    read_portfolio,
+    save_prices,
+)
 
 pytestmark = pytest.mark.usefixtures("app_env")
 
@@ -214,14 +222,15 @@ def test_removed_ticker_with_a_position_stays_priced_until_sold(client: TestClie
 def test_restart_continues_from_the_last_prices(app_env: Path, static_dir: Path):
     with TestClient(create_app(static_dir=static_dir)) as first:
         order(first, ticker="AAPL", side="buy", quantity=1)
-    saved = load_prices(app_env)
+    assert "AAPL" in load_prices(app_env)  # saved at shutdown
+    save_prices(app_env, {"AAPL": (250.0, 240.0)})  # far from the simulator's own start
     app = create_app(static_dir=static_dir)
     with TestClient(app):
         update = app.state.price_cache.get("AAPL")
         # One simulator step may already have run; it moves the price very little unless an
         # event fires, and prev_close never moves.
-        assert update.prev_close == saved["AAPL"][1]
-        assert update.price == pytest.approx(saved["AAPL"][0], rel=0.06)
+        assert update.prev_close == 240.0
+        assert update.price == pytest.approx(250.0, rel=0.06)
 
 
 def test_simulator_resumes_only_the_initial_tickers():

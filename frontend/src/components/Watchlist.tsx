@@ -13,7 +13,7 @@ function PriceCell({ quote, tick }: WatchlistRow) {
   const arrow = tick?.direction ? ARROWS[tick.direction] : null;
   const flash = arrow && tick && tick.flash > 0 ? arrow.flash : "";
   return (
-    <td className="px-2 py-2 text-right tabular-nums">
+    <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
       {arrow && (
         <>
           <span aria-hidden="true" className={`mr-1 text-xs ${arrow.className}`}>
