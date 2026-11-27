@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+/* openUI tokens (planning/OUI_FORMAT.md sections 2 and 3). */
+:root {
+  --brand-teal: #4c7f82; /* focus outlines and borders */
+  --brand-teal-ink: #315f62; /* primary buttons, links, accents */
+  --brand-orange: #d57e39; /* decoration only, never text */
+  --brand-orange-ink: #8f4a1b; /* errors and destructive actions */
+  --gray-text: #666666; /* secondary text */
+  --navy-dark: #263c3d; /* headings and body text */
+  --surface: #f6f8f7; /* page background, soft fills */
+  --surface-strong: #ffffff; /* panels */
+  --stroke: rgba(49, 95, 98, 0.14); /* borders */
+  --shadow: 0 18px 40px rgba(49, 95, 98, 0.12); /* panels */
+}
+
+/* The tokens as the only Tailwind colours. */
+@theme inline {
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-brand-teal: var(--brand-teal);
+  --color-brand-teal-ink: var(--brand-teal-ink);
+  --color-brand-orange: var(--brand-orange);
+  --color-brand-orange-ink: var(--brand-orange-ink);
+  --color-gray-text: var(--gray-text);
+  --color-navy-dark: var(--navy-dark);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-stroke: var(--stroke);
+  --shadow-panel: var(--shadow);
+  --font-sans: "Manrope Variable", "Segoe UI", Calibri, Arial, sans-serif;
+  --font-display: "Space Grotesk Variable", "Segoe UI", Arial, sans-serif;
+}
+
+@layer base {
+  body {
+    background: var(--surface);
+    color: var(--navy-dark);
+    font-family: var(--font-sans);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand-teal);
+    outline-offset: 2px;
+  }
+}
