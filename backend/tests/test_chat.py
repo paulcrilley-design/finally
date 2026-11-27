@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from app.chat import PROPOSER_PROMPT
 from app.llm import MockClient, ModelError, OpenRouterClient, Proposal, ReviewResult
 from app.main import create_app
+from db import add_exchange
 
 pytestmark = pytest.mark.usefixtures("app_env")
 
@@ -258,3 +259,13 @@ def test_one_failed_action_does_not_stop_the_others(
     assert statuses(reply) == ["rejected", "executed"]
     assert reply["actions"][0]["reason"] == "It could not be executed."
     assert portfolio(client)["positions"][0]["ticker"] == "V"
+
+
+def test_history_saved_by_an_earlier_version_does_not_break_chat(
+    client: TestClient, model: FakeModel
+):
+    old = {"trades": [], "watchlist_changes": [], "error": None}
+    add_exchange(client.app.state.db_path, "default", "hello", "Hi.", old)
+    assert say(client, "buy 1 V")["actions"][0]["status"] == "executed"
+    assert model.proposals[0][2] == {"role": "assistant", "content": "Hi."}
+    assert client.get("/api/chat").json()["messages"][1]["actions"] is None

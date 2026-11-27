@@ -24,6 +24,13 @@ requirements-completed: [APP-04, UI-02, OPS-01, OPS-02, TEST-01, TEST-02, TEST-0
 - No layout changes were needed for narrow screens. On a phone the positions table scrolls
   sideways inside its panel, as the plan allows.
 
+## Fixed after release
+
+- Chat failed with "No reply" on the old `finally-data` volume: an earlier version saved chat
+  actions as an object, and the app expects a list. Such values are now ignored when read; stored
+  data is unchanged. Regression test added (backend 264 passed). One live question on a copy of
+  the volume was answered inside the container.
+
 ## Verification
 
 - Backend 263 passed, ruff clean; frontend 86 passed, lint and typecheck passed; production

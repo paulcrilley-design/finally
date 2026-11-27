@@ -55,7 +55,10 @@ def recent_messages(path: Path, user_id: str, limit: int) -> list[dict]:
             " WHERE user_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?",
             (user_id, limit),
         ).fetchall()
-    return [
-        {**dict(row), "actions": None if row["actions"] is None else json.loads(row["actions"])}
-        for row in reversed(rows)
-    ]
+    return [{**dict(row), "actions": _actions(row["actions"])} for row in reversed(rows)]
+
+
+def _actions(stored: str | None) -> list[dict] | None:
+    """An earlier version stored an object here. Only a list of actions is understood."""
+    value = None if stored is None else json.loads(stored)
+    return value if isinstance(value, list) else None
