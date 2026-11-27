@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 
-import type { PriceMap, WatchlistItem, WatchlistResponse } from "./types";
+import { applyPrices, applyWatchlist, EMPTY_MARKET } from "./ticks";
+import type { WatchlistItem, WatchlistResponse, WatchlistRow } from "./types";
 
 export type MarketError = "unavailable" | null;
 
 // Rows follow the stored watchlist for order and membership, with streamed values on top.
-export function useMarket(): { rows: WatchlistItem[] | null; error: MarketError } {
-  const [prices, setPrices] = useState<PriceMap>({});
+export function useMarket(): { rows: WatchlistRow[] | null; error: MarketError } {
+  const [data, setData] = useState(EMPTY_MARKET);
   const [watchlist, setWatchlist] = useState<WatchlistItem[] | null>(null);
   const [error, setError] = useState<MarketError>(null);
 
@@ -17,7 +18,9 @@ export function useMarket(): { rows: WatchlistItem[] | null; error: MarketError 
         const response = await fetch("/api/watchlist");
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const body: WatchlistResponse = await response.json();
-        if (mounted) setWatchlist(body.watchlist);
+        if (!mounted) return;
+        setWatchlist(body.watchlist);
+        setData((current) => applyWatchlist(current, body.watchlist));
       } catch {
         if (mounted) setError("unavailable");
       }
@@ -27,7 +30,8 @@ export function useMarket(): { rows: WatchlistItem[] | null; error: MarketError 
     const source = new EventSource("/api/stream/prices");
     source.onmessage = (event) => {
       try {
-        setPrices(JSON.parse(event.data));
+        const prices = JSON.parse(event.data);
+        setData((current) => applyPrices(current, prices));
       } catch {
         // Ignore malformed data; the next message replaces it.
       }
@@ -38,6 +42,10 @@ export function useMarket(): { rows: WatchlistItem[] | null; error: MarketError 
     };
   }, []);
 
-  const rows = watchlist?.map((item) => ({ ...item, ...prices[item.ticker] })) ?? null;
+  const rows =
+    watchlist?.map((item) => ({
+      quote: data.quotes[item.ticker] ?? item,
+      tick: data.ticks[item.ticker],
+    })) ?? null;
   return { rows, error };
 }

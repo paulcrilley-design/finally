@@ -44,3 +44,31 @@
     outline-offset: 2px;
   }
 }
+
+/* A brief tint on each price move. Keep it at 15% or less, or gray text falls below AA. */
+@keyframes flash-up {
+  from {
+    background-color: color-mix(in srgb, var(--brand-teal-ink) 15%, transparent);
+  }
+}
+
+@keyframes flash-down {
+  from {
+    background-color: color-mix(in srgb, var(--brand-orange) 15%, transparent);
+  }
+}
+
+.flash-up {
+  animation: flash-up 500ms ease-out;
+}
+
+.flash-down {
+  animation: flash-down 500ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash-up,
+  .flash-down {
+    animation: none;
+  }
+}

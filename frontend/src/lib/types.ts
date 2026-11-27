@@ -1,5 +1,7 @@
 // The price and watchlist contracts (backend: PriceUpdate.to_dict()).
 
+import type { Tick } from "./ticks";
+
 export type PriceUpdate = {
   ticker: string;
   price: number;
@@ -21,3 +23,5 @@ export type WatchlistItem = { ticker: string } & {
 export type PriceMap = Record<string, PriceUpdate>;
 
 export type WatchlistResponse = { watchlist: WatchlistItem[] };
+
+export type WatchlistRow = { quote: WatchlistItem; tick?: Tick };

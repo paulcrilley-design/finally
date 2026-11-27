@@ -1,5 +1,5 @@
 import { formatChangePercent, formatPrice, type Tone } from "@/lib/format";
-import type { WatchlistItem } from "@/lib/types";
+import type { WatchlistRow } from "@/lib/types";
 import type { MarketError } from "@/lib/useMarket";
 
 const TONE_CLASS: Record<Tone, string> = {
@@ -8,7 +8,33 @@ const TONE_CLASS: Record<Tone, string> = {
   flat: "text-navy-dark",
 };
 
-export function Watchlist({ rows, error }: { rows: WatchlistItem[] | null; error: MarketError }) {
+const ARROWS = {
+  up: { glyph: "\u25b2", className: "text-brand-teal-ink", flash: "flash-up" },
+  down: { glyph: "\u25bc", className: "text-brand-orange-ink", flash: "flash-down" },
+};
+
+function PriceCell({ quote, tick }: WatchlistRow) {
+  const arrow = tick?.direction ? ARROWS[tick.direction] : null;
+  const flash = arrow && tick && tick.flash > 0 ? arrow.flash : "";
+  return (
+    <td className="py-2 text-right tabular-nums">
+      {arrow && (
+        <>
+          <span aria-hidden="true" className={`mr-1 text-xs ${arrow.className}`}>
+            {arrow.glyph}
+          </span>
+          <span className="sr-only">{tick?.direction}</span>{" "}
+        </>
+      )}
+      {/* A new key remounts the element, which restarts the animation. */}
+      <span key={tick?.flash ?? 0} className={`rounded px-1 ${flash}`}>
+        {formatPrice(quote.price)}
+      </span>
+    </td>
+  );
+}
+
+export function Watchlist({ rows, error }: { rows: WatchlistRow[] | null; error: MarketError }) {
   if (rows === null) {
     return <p className="text-sm text-gray-text">{error ? "Watchlist unavailable" : "Loading watchlist"}</p>;
   }
@@ -29,14 +55,14 @@ export function Watchlist({ rows, error }: { rows: WatchlistItem[] | null; error
         </tr>
       </thead>
       <tbody>
-        {rows.map(({ ticker, price, day_change_percent }) => {
-          const change = formatChangePercent(day_change_percent);
+        {rows.map(({ quote, tick }) => {
+          const change = formatChangePercent(quote.day_change_percent);
           return (
-            <tr key={ticker} className="border-t border-stroke">
+            <tr key={quote.ticker} className="border-t border-stroke">
               <th scope="row" className="py-2 text-left font-semibold">
-                {ticker}
+                {quote.ticker}
               </th>
-              <td className="py-2 text-right tabular-nums">{formatPrice(price)}</td>
+              <PriceCell quote={quote} tick={tick} />
               <td className={`py-2 text-right tabular-nums ${TONE_CLASS[change.tone]}`}>
                 {change.text}
               </td>
