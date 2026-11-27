@@ -1,7 +1,7 @@
 # FinAlly — Agent Team Plan
 
-**Status (2026-11-27):** proposed and saved, no agents started yet. When Paul says to read this
-file and go, that approves the plan and the items under "What approval covers".
+**Status (2026-11-27):** approved. Step 1 (`CONTRACTS.md`) and Stage A are done and committed
+(225 backend tests pass). Next: Stage B, after Paul has checked `/usage`.
 
 **Goal:** build the rest of the platform as defined in `PLAN.md` using an agent team. Market data
 is already built (`MARKET_DATA_SUMMARY.md`). Work on branch `agent-teams`.
