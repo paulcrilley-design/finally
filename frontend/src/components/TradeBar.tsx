@@ -7,9 +7,17 @@ import type { Side } from "../lib/types";
 import { Card } from "./Card";
 import { Button, cn, INPUT } from "./ui";
 
+type Unit = "shares" | "usd";
+
+const UNITS: { unit: Unit; label: string }[] = [
+  { unit: "shares", label: "Shares" },
+  { unit: "usd", label: "US$" },
+];
+
 export function TradeBar({ selected, onTraded }: { selected: string | null; onTraded: () => Promise<void> | void }) {
   const [ticker, setTicker] = useState("");
-  const [quantity, setQuantity] = useState("");
+  const [unit, setUnit] = useState<Unit>("shares");
+  const [size, setSize] = useState("");
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -20,19 +28,22 @@ export function TradeBar({ selected, onTraded }: { selected: string | null; onTr
 
   async function trade(side: Side) {
     const symbol = ticker.trim().toUpperCase();
-    const amount = Number(quantity);
+    const value = Number(size);
     if (!symbol) return setMessage({ text: "Enter a ticker.", error: true });
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return setMessage({ text: "Enter a quantity above zero.", error: true });
+    if (!Number.isFinite(value) || value <= 0) {
+      const what = unit === "usd" ? "an amount" : "a quantity";
+      return setMessage({ text: `Enter ${what} above zero.`, error: true });
     }
     setBusy(true);
     setMessage(null);
     try {
-      const { trade: done } = await api.trade(symbol, amount, side);
+      const order = unit === "usd" ? { amount: value } : { quantity: value };
+      const { trade: done } = await api.trade(symbol, order, side);
       await onTraded();
       const verb = done.side === "buy" ? "Bought" : "Sold";
+      const total = unit === "usd" ? ` for ${formatMoney(done.value)}` : "";
       setMessage({
-        text: `${verb} ${formatQuantity(done.quantity)} ${done.ticker} at ${formatMoney(done.price)}.`,
+        text: `${verb} ${formatQuantity(done.quantity)} ${done.ticker}${total} at ${formatMoney(done.price)}.`,
         error: false,
       });
     } catch (cause) {
@@ -56,16 +67,34 @@ export function TradeBar({ selected, onTraded }: { selected: string | null; onTr
             className={INPUT}
           />
         </label>
+        <div role="group" aria-label="Order size in" className="flex gap-1">
+          {UNITS.map((option) => (
+            <Button
+              key={option.unit}
+              data-testid={`trade-unit-${option.unit}`}
+              variant={unit === option.unit ? "primary" : "ghost"}
+              aria-pressed={unit === option.unit}
+              onClick={() => {
+                if (unit === option.unit) return;
+                setUnit(option.unit);
+                setSize(""); // 500 shares must never silently become $500, or the reverse
+                setMessage(null);
+              }}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
         <label className="min-w-28 flex-1 text-sm font-semibold">
-          Quantity
+          {unit === "usd" ? "Amount (US$)" : "Quantity"}
           <input
             data-testid="trade-quantity"
             type="number"
             min="0"
-            step="any"
+            step={unit === "usd" ? "0.01" : "any"}
             inputMode="decimal"
-            value={quantity}
-            onChange={(event) => setQuantity(event.target.value)}
+            value={size}
+            onChange={(event) => setSize(event.target.value)}
             className={INPUT}
           />
         </label>

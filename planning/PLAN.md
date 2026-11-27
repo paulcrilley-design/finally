@@ -24,7 +24,7 @@ The user runs a single Docker command (or a provided start script). A browser op
 - **Watch prices stream** — prices flash teal (uptick) or orange (downtick), with an up/down arrow, using subtle CSS animations that fade
 - **View sparkline mini-charts** — price action beside each ticker in the watchlist, accumulated on the frontend from the SSE stream since page load (sparklines fill in progressively)
 - **Click a ticker** to see a larger detailed chart in the main chart area
-- **Buy and sell shares** — market orders only, instant fill at current price, no fees, no confirmation dialog
+- **Buy and sell shares** — market orders only, sized in shares (up to 6 decimals) or in US dollars, instant fill at current price, no fees, no confirmation dialog
 - **Monitor their portfolio** — a heatmap (treemap) showing positions sized by weight and colored by P&L, plus a P&L chart tracking total portfolio value over time
 - **View a positions table** — ticker, quantity, average cost, current price, unrealized P&L, % change
 - **Chat with the AI assistant** — ask about their portfolio, get analysis, and have the AI execute trades and manage the watchlist through natural language
@@ -283,7 +283,7 @@ All user-owned tables include a `user_id` column defaulting to `"default"`. Only
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/portfolio` | Current positions, cash balance, total value, unrealized P&L |
-| POST | `/api/portfolio/trade` | Execute a trade: `{ticker, quantity, side}` |
+| POST | `/api/portfolio/trade` | Execute a trade: `{ticker, side}` plus `quantity` (shares) or `amount` (US$) |
 | GET | `/api/portfolio/history` | Portfolio value snapshots over time (for P&L chart) |
 
 ### Watchlist
@@ -342,7 +342,7 @@ The LLM is instructed to respond with JSON matching this schema:
 ```
 
 - `message` (required): The conversational text shown to the user
-- `trades` (optional): Array of trades to auto-execute. Each trade goes through the same validation as manual trades (sufficient cash for buys, sufficient shares for sells)
+- `trades` (optional): Array of trades to auto-execute, each sized by `quantity` (shares) or `amount` (US$). Each trade goes through the same validation as manual trades (sufficient cash for buys, sufficient shares for sells)
 - `watchlist_changes` (optional): Array of watchlist modifications
 
 ### Second-Opinion Review (Checks and Balances)
@@ -429,7 +429,7 @@ The frontend is a single-page application with a dense, terminal-style layout in
 - **Portfolio heatmap** — treemap visualization where each rectangle is a position, sized by portfolio weight, colored by P&L (teal-ink = profit, orange-ink = loss, with +/− signs; see Section 2)
 - **P&L chart** — line chart showing total portfolio value over time, using data from `portfolio_snapshots`
 - **Positions table** — tabular view of all positions: ticker, quantity, avg cost, current price, unrealized P&L, % change
-- **Trade bar** — simple input area: ticker field, quantity field, buy button, sell button. Market orders, instant fill.
+- **Trade bar** — simple input area: ticker field, Shares / US$ switch, size field, buy button, sell button. Market orders, instant fill.
 - **AI chat panel** — docked/collapsible sidebar. Message input, scrolling conversation history, loading indicator while waiting for LLM response. Trade executions and watchlist changes shown inline as confirmations.
 - **Header** — portfolio total value (updating live), connection status indicator, cash balance
 

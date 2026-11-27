@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from .connection import connect, transaction, utc_now
 from .errors import InsufficientCash, InsufficientShares
 
+QUANTITY_DECIMALS = 6  # fine enough that a dollar amount fills to the cent
 POSITION_COLUMNS = "ticker, quantity, avg_cost, updated_at"
 SNAPSHOT_DAYS = 7
 
@@ -37,11 +38,11 @@ def apply_trade(user_id: str, ticker: str, side: str, quantity: float, price: fl
     """
     if side not in ("buy", "sell"):
         raise ValueError(f"Invalid side: {side!r}")
-    if not math.isfinite(quantity) or round(quantity, 4) <= 0:
+    if not math.isfinite(quantity) or round(quantity, QUANTITY_DECIMALS) <= 0:
         raise ValueError(f"Invalid quantity: {quantity!r}")
     if not math.isfinite(price) or price <= 0:
         raise ValueError(f"Invalid price: {price!r}")
-    quantity = round(quantity, 4)
+    quantity = round(quantity, QUANTITY_DECIMALS)
     value = round(quantity * price, 2)
 
     with transaction() as conn:
@@ -60,13 +61,13 @@ def apply_trade(user_id: str, ticker: str, side: str, quantity: float, price: fl
         if side == "buy":
             if value > cash:
                 raise InsufficientCash(f"Need ${value:,.2f} but only ${cash:,.2f} is available.")
-            new_quantity = round(held + quantity, 4)
+            new_quantity = round(held + quantity, QUANTITY_DECIMALS)
             avg_cost = (held * avg_cost + quantity * price) / new_quantity
             cash = round(cash - value, 2)
         else:
             if quantity > held:
-                raise InsufficientShares(f"Cannot sell {quantity:g} {ticker}: you hold {held:g}.")
-            new_quantity = round(held - quantity, 4)
+                raise InsufficientShares(f"Cannot sell {quantity} {ticker}: you hold {held}.")
+            new_quantity = round(held - quantity, QUANTITY_DECIMALS)
             cash = round(cash + value, 2)
 
         executed_at = utc_now()

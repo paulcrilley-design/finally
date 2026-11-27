@@ -40,9 +40,9 @@ def test_selling_everything_deletes_position():
 
 
 def test_rounding():
-    trade = db.apply_trade("default", "AAPL", "buy", 1.234567, 33.33)
-    assert trade["quantity"] == 1.2346
-    assert db.get_cash("default") == round(10000 - round(1.2346 * 33.33, 2), 2)
+    trade = db.apply_trade("default", "AAPL", "buy", 1.23456749, 33.33)
+    assert trade["quantity"] == 1.234567
+    assert db.get_cash("default") == round(10000 - round(1.234567 * 33.33, 2), 2)
 
 
 def test_can_spend_all_cash():
@@ -72,7 +72,7 @@ def test_insufficient_shares_changes_nothing(ticker):
         ("hold", 1, 100),
         ("buy", 0, 100),
         ("buy", -1, 100),
-        ("buy", 0.00001, 100),
+        ("buy", 0.0000001, 100),
         ("buy", math.nan, 100),
         ("sell", math.inf, 100),
         ("buy", 1, 0),

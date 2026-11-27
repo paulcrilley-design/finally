@@ -3,11 +3,22 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { api, errorMessage } from "../lib/api";
 import { formatMoney, formatQuantity } from "../lib/format";
-import type { ChatResponse, StoredChatMessage } from "../lib/types";
+import type { ChatResponse, ChatTrade, StoredChatMessage } from "../lib/types";
 import { Alert } from "./Card";
 import { Button, cn, INPUT, PANEL, Spinner, SUBHEADING } from "./ui";
 
 type Message = { role: "user"; text: string } | { role: "assistant"; text: string; reply: ChatResponse };
+
+function tradeText({ side, ticker, quantity, amount, price }: ChatTrade): string {
+  const verb = side === "buy" ? "Buy" : "Sell";
+  const money = amount == null ? "" : formatMoney(amount);
+  if (price == null || quantity == null) {
+    if (money) return `${verb} ${money} of ${ticker}`;
+    return quantity == null ? `${verb} ${ticker}` : `${verb} ${formatQuantity(quantity)} ${ticker}`;
+  }
+  const total = money && ` for ${money}`;
+  return `${verb} ${formatQuantity(quantity)} ${ticker}${total} at ${formatMoney(price)}`;
+}
 
 function fromStored({ role, content, actions }: StoredChatMessage): Message {
   if (role === "user") return { role, text: content };
@@ -49,10 +60,7 @@ function Actions({ reply }: { reply: ChatResponse }) {
         <Action
           key={`trade-${i}`}
           status={trade.status}
-          text={
-            `${trade.side === "buy" ? "Buy" : "Sell"} ${formatQuantity(trade.quantity)} ${trade.ticker}` +
-            (trade.price == null ? "" : ` at ${formatMoney(trade.price)}`)
-          }
+          text={tradeText(trade)}
           reason={trade.reason ?? trade.review?.reason ?? null}
         />
       ))}

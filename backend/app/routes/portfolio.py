@@ -16,8 +16,9 @@ User = Annotated[str, Depends(get_current_user)]
 
 class TradeRequest(BaseModel):
     ticker: str
-    quantity: float
     side: str
+    quantity: float | None = None  # shares
+    amount: float | None = None  # US dollars; give exactly one of the two
 
 
 @router.get("")
@@ -28,7 +29,7 @@ async def read_portfolio(request: Request, user_id: User) -> dict:
 @router.post("/trade")
 async def trade(body: TradeRequest, request: Request, user_id: User) -> dict:
     return await portfolio.execute_trade(
-        request.app.state, user_id, body.ticker, body.side, body.quantity
+        request.app.state, user_id, body.ticker, body.side, body.quantity, body.amount
     )
 
 

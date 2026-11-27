@@ -71,7 +71,7 @@ list_chat_messages(user_id, limit=10) -> list[dict]   # newest `limit`, returned
 all_tracked_tickers() -> set[str]                     # all users' watchlists and positions
 ```
 
-Money rules (floats are acceptable): `quantity` is rounded to 4 decimals. Trade value is
+Money rules (floats are acceptable): `quantity` is rounded to 6 decimals. Trade value is
 `round(quantity * price, 2)`; cash is stored rounded to 2 decimals; a buy needs `value <= cash`.
 A buy updates `avg_cost` as the weighted average. A sell keeps `avg_cost`. A position reaching 0
 is deleted.
@@ -97,9 +97,9 @@ class ServiceError(Exception):  # ServiceError(code: str, message: str, status: 
 
 # app/services/portfolio.py
 get_portfolio(state, user_id) -> dict                       # shape of GET /api/portfolio
-check_trade(state, user_id, ticker, side, quantity) -> float
+check_trade(state, user_id, ticker, side, quantity=None, amount=None) -> float
     # No writes. Returns the live price, or raises ServiceError.
-async execute_trade(state, user_id, ticker, side, quantity) -> dict
+async execute_trade(state, user_id, ticker, side, quantity=None, amount=None) -> dict
     # shape of the POST trade response; also snapshots and reconciles tickers
 
 # app/services/watchlist.py
@@ -124,13 +124,17 @@ Services normalise tickers. After any watchlist or trade change:
 | Code | Status |
 |---|---|
 | `invalid_request` | 422 |
-| `invalid_ticker`, `invalid_quantity`, `invalid_side` | 400 |
+| `invalid_ticker`, `invalid_quantity`, `invalid_amount`, `invalid_side` | 400 |
 | `no_price`, `insufficient_cash`, `insufficient_shares` | 400 |
 | `already_watching` | 409 |
 | `not_watching`, `not_found` | 404 |
 
 A ticker with no live price is rejected (`no_price`). Off-watchlist trades are allowed if priced.
-Quantity must be finite and above 0 after rounding to 4 decimals.
+Give exactly one of `quantity` (shares, finite and above 0 after rounding to 6 decimals) or
+`amount` (US dollars, at least $0.01 after rounding to cents), else `invalid_request` (400).
+An amount is turned into shares at the fill price and never costs more than the amount (it is
+exact below $10,000 a share). Selling exactly `round(held * price, 2)` dollars closes the
+position; selling more is `insufficient_shares`.
 
 ### `GET /api/health`
 ```json
@@ -151,10 +155,11 @@ Quantity must be finite and above 0 after rounding to 4 decimals.
 `null` and it is left out of the totals.
 
 ### `POST /api/portfolio/trade`
-Request `{"ticker": "AAPL", "quantity": 10, "side": "buy"}` (side `"buy"`|`"sell"`). Response 200:
+Request `{"ticker": "AAPL", "quantity": 10, "side": "buy"}` or
+`{"ticker": "AAPL", "amount": 500, "side": "buy"}` (side `"buy"`|`"sell"`). Response 200:
 ```json
 {"trade": {"id": "...", "ticker": "AAPL", "side": "buy", "quantity": 10.0, "price": 190.0,
-           "executed_at": "2026-11-27T10:00:00+00:00"},
+           "value": 1900.0, "executed_at": "2026-11-27T10:00:00+00:00"},
  "portfolio": { "...": "same shape as GET /api/portfolio" }}
 ```
 
@@ -207,6 +212,8 @@ Request `{"message": "buy 5 AAPL"}` (non-empty after trimming, max 2000 characte
  "error": null}
 ```
 
+- A trade also has `amount`: the US dollars when the order was given in money, else `null`.
+  `quantity` is `null` for a dollar order that did not execute.
 - `status` is `"executed"` or `"rejected"`. `review` is `null` if the action never reached the
   reviewer. `price` is `null` unless executed.
 - `error` is `null`, `"llm_unavailable"` (proposer failed in any way, including a missing key:
@@ -224,6 +231,7 @@ Request `{"message": "buy 5 AAPL"}` (non-empty after trimming, max 2000 characte
 | User message contains | Proposer returns |
 |---|---|
 | `buy <qty> <TICKER>` / `sell <qty> <TICKER>` (repeatable) | those trades |
+| `buy $<amount> of <TICKER>` / `sell $<amount> <TICKER>` | dollar orders |
 | `add <TICKER>` / `remove <TICKER>` (repeatable) | those watchlist changes |
 | none of the above | no actions |
 
@@ -252,7 +260,7 @@ Required `data-testid` values (`{T}` = ticker):
 | `watchlist-remove-{T}` | remove button |
 | `watchlist-add-input`, `watchlist-add-button` | add form |
 | `main-chart` | with attribute `data-ticker="{T}"` |
-| `trade-ticker`, `trade-quantity`, `trade-buy`, `trade-sell` | trade bar |
+| `trade-ticker`, `trade-quantity`, `trade-unit-shares`, `trade-unit-usd`, `trade-buy`, `trade-sell` | trade bar |
 | `trade-message` | success or error text after a trade |
 | `positions-table`, `position-row-{T}`, `position-quantity-{T}` | positions |
 | `heatmap`, `heatmap-cell-{T}` | cell has `data-pnl="profit"\|"loss"\|"flat"` |

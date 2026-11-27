@@ -6,7 +6,9 @@ import re
 from .schemas import ProposerResponse, Review, ReviewerResponse, TradeProposal, WatchlistProposal
 
 _TICKER = r"([a-z]+(?:[.\-][a-z]+)*)"
-_TRADE_RE = re.compile(rf"\b(buy|sell)\s+(\d+(?:\.\d+)?|\.\d+)\s+{_TICKER}", re.IGNORECASE)
+_TRADE_RE = re.compile(
+    rf"\b(buy|sell)\s+(\$?)(\d+(?:\.\d+)?|\.\d+)\s+(?:of\s+)?{_TICKER}", re.IGNORECASE
+)
 _WATCH_RE = re.compile(rf"\b(add|remove)\s+{_TICKER}", re.IGNORECASE)
 _REJECT_RE = re.compile(r"\breject\b", re.IGNORECASE)
 
@@ -17,8 +19,12 @@ def is_enabled() -> bool:
 
 def propose(user_message: str) -> ProposerResponse:
     trades = [
-        TradeProposal(ticker=ticker.upper(), side=side.lower(), quantity=float(quantity))
-        for side, quantity, ticker in _TRADE_RE.findall(user_message)
+        TradeProposal(
+            ticker=ticker.upper(),
+            side=side.lower(),
+            **{"amount" if dollar else "quantity": float(size)},
+        )
+        for side, dollar, size, ticker in _TRADE_RE.findall(user_message)
     ]
     changes = [
         WatchlistProposal(ticker=ticker.upper(), action=action.lower())

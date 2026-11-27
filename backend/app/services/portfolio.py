@@ -11,6 +11,8 @@ from app.services.tickers import require_symbol
 
 logger = logging.getLogger(__name__)
 
+DECIMALS = db.QUANTITY_DECIMALS
+
 
 def get_portfolio(state, user_id: str) -> dict:
     """Cash, positions valued at live prices, and totals. Unpriced positions have nulls."""
@@ -54,41 +56,92 @@ def get_portfolio(state, user_id: str) -> dict:
     }
 
 
-def check_trade(state, user_id: str, ticker: str, side: str, quantity: float) -> float:
+def check_trade(
+    state,
+    user_id: str,
+    ticker: str,
+    side: str,
+    quantity: float | None = None,
+    amount: float | None = None,
+) -> float:
     """Validate a trade without writing. Returns the live price or raises ServiceError."""
+    return _price_order(state, user_id, ticker, side, quantity, amount)[0]
+
+
+def _price_order(
+    state, user_id: str, ticker: str, side: str, quantity: float | None, amount: float | None
+) -> tuple[float, float]:
+    """Check an order given in shares (`quantity`) or US dollars (`amount`).
+
+    Returns (live price, shares to trade).
+    """
     symbol = require_symbol(ticker)
     if side not in ("buy", "sell"):
         raise ServiceError("invalid_side", "Side must be 'buy' or 'sell'.")
-    if not math.isfinite(quantity) or round(quantity, 4) <= 0:
-        raise ServiceError("invalid_quantity", "Quantity must be a number greater than zero.")
-    quantity = round(quantity, 4)
+    if (quantity is None) == (amount is None):
+        raise ServiceError("invalid_request", "Give either a quantity or a dollar amount.")
+    if amount is None:
+        if not math.isfinite(quantity) or round(quantity, DECIMALS) <= 0:
+            raise ServiceError("invalid_quantity", "Quantity must be a number greater than zero.")
+    elif not math.isfinite(amount) or round(amount, 2) <= 0:
+        raise ServiceError("invalid_amount", "Amount must be at least $0.01.")
     price = state.price_cache.get_price(symbol)
     if price is None:
         raise ServiceError("no_price", f"There is no live price for {symbol}.")
+    position = db.get_position(user_id, symbol) if side == "sell" else None
+    held = round(position["quantity"], DECIMALS) if position else 0.0
+    if amount is None:
+        quantity = round(quantity, DECIMALS)
+    else:
+        quantity = _shares_for(round(amount, 2), price, held)
     if side == "buy":
-        # Not rounded first: a huge quantity makes this inf, which still compares correctly.
+        # Not rounded first: a huge order makes this inf, which still compares correctly.
         value = round(quantity * price, 2)
         if value <= 0:
-            raise ServiceError("invalid_quantity", f"That much {symbol} is worth less than $0.01.")
+            raise ServiceError(
+                "invalid_quantity", f"That quantity of {symbol} is worth less than $0.01."
+            )
         if value > db.get_cash(user_id):
             raise _insufficient_cash(symbol)
-    else:
-        position = db.get_position(user_id, symbol)
-        if position is None or quantity > round(position["quantity"], 4):
-            raise _insufficient_shares(symbol)
-    return price
+    elif position is None or quantity > held:
+        raise _insufficient_shares(symbol)
+    return price, quantity
 
 
-async def execute_trade(state, user_id: str, ticker: str, side: str, quantity: float) -> dict:
+def _shares_for(amount: float, price: float, held: float) -> float:
+    """Shares worth `amount` dollars, never costing more than it.
+
+    Selling exactly what a holding is shown to be worth sells all of it (`held` is 0 on a buy).
+    """
+    if held and amount == round(held * price, 2):
+        return held
+    shares = amount / price
+    if not math.isfinite(shares):
+        return shares
+    shares = round(shares, DECIMALS)
+    if round(shares * price, 2) > amount:  # only possible for very high share prices
+        shares = round(shares - 10**-DECIMALS, DECIMALS)
+    return shares
+
+
+async def execute_trade(
+    state,
+    user_id: str,
+    ticker: str,
+    side: str,
+    quantity: float | None = None,
+    amount: float | None = None,
+) -> dict:
     """Fill a market order at the live price. Returns {"trade", "portfolio"}."""
-    price = check_trade(state, user_id, ticker, side, quantity)
+    price, shares = _price_order(state, user_id, ticker, side, quantity, amount)
     symbol = require_symbol(ticker)
     try:
-        trade = db.apply_trade(user_id, symbol, side, round(quantity, 4), price)
+        trade = db.apply_trade(user_id, symbol, side, shares, price)
     except db.InsufficientCash:
         raise _insufficient_cash(symbol) from None
     except db.InsufficientShares:
         raise _insufficient_shares(symbol) from None
+    trade["value"] = round(trade["quantity"] * price, 2)
     # The trade is committed: a failure below must not report it as failed.
     try:
         await reconcile_tickers(state.market_source, db.all_tracked_tickers())

@@ -69,7 +69,7 @@ describe("valuePortfolio", () => {
 describe("api", () => {
   it("raises the server's error message", async () => {
     stubFetch({ error: { code: "insufficient_cash", message: "Not enough cash." } }, 400);
-    await expect(api.trade("AAPL", 1, "buy")).rejects.toMatchObject({ code: "insufficient_cash", message: "Not enough cash." });
+    await expect(api.trade("AAPL", { quantity: 1 }, "buy")).rejects.toMatchObject({ code: "insufficient_cash", message: "Not enough cash." });
   });
 
   it("handles 204", async () => {

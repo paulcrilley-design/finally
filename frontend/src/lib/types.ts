@@ -3,6 +3,8 @@
 export type Direction = "up" | "down" | "flat";
 export type Side = "buy" | "sell";
 
+export type OrderSize = { quantity: number } | { amount: number };
+
 export interface PriceUpdate {
   ticker: string;
   price: number;
@@ -55,6 +57,8 @@ export interface Trade {
   quantity: number;
   price: number;
   executed_at: string;
+  /** US dollars paid or received. */
+  value: number;
 }
 
 export interface Snapshot {
@@ -76,7 +80,10 @@ interface ActionResult {
 
 export interface ChatTrade extends ActionResult {
   side: Side;
-  quantity: number;
+  /** Null when an order given in dollars was not filled. */
+  quantity: number | null;
+  /** Set when the order was given in dollars; missing on older stored messages. */
+  amount?: number | null;
   price: number | null;
 }
 

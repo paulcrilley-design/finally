@@ -94,6 +94,7 @@ def _trade_result(trade) -> dict:
         "ticker": normalize_ticker(trade.ticker),
         "side": trade.side,
         "quantity": trade.quantity,
+        "amount": trade.amount,
         "status": "rejected",
         "price": None,
         "reason": None,
@@ -118,7 +119,14 @@ def _reject(result: dict, reason: str) -> None:
 
 def _validate_trade(state, user_id: str, result: dict) -> bool:
     try:
-        portfolio.check_trade(state, user_id, result["ticker"], result["side"], result["quantity"])
+        portfolio.check_trade(
+            state,
+            user_id,
+            result["ticker"],
+            result["side"],
+            result["quantity"],
+            result["amount"],
+        )
     except ServiceError as exc:
         _reject(result, exc.message)
         return False
@@ -147,7 +155,12 @@ def _validate_change(state, user_id: str, result: dict) -> bool:
 def _describe(index: int, result: dict) -> dict:
     """One proposed action as the reviewer sees it."""
     if "side" in result:
-        fields = {"type": "trade", "side": result["side"], "quantity": result["quantity"]}
+        size = (
+            {"quantity": result["quantity"]}
+            if result["amount"] is None
+            else {"amount_usd": result["amount"]}
+        )
+        fields = {"type": "trade", "side": result["side"], **size}
     else:
         fields = {"type": "watchlist_change", "action": result["action"]}
     return {"action_index": index, "ticker": result["ticker"], **fields}
@@ -175,7 +188,12 @@ def _approved(result: dict) -> bool:
 async def _execute_trade(state, user_id: str, result: dict) -> None:
     try:
         response = await portfolio.execute_trade(
-            state, user_id, result["ticker"], result["side"], result["quantity"]
+            state,
+            user_id,
+            result["ticker"],
+            result["side"],
+            result["quantity"],
+            result["amount"],
         )
     except ServiceError as exc:
         _reject(result, exc.message)
@@ -185,6 +203,8 @@ async def _execute_trade(state, user_id: str, result: dict) -> None:
     else:
         trade = response["trade"]
         result.update(status="executed", quantity=trade["quantity"], price=trade["price"])
+        if result["amount"] is not None:
+            result["amount"] = trade["value"]
 
 
 async def _execute_change(state, user_id: str, result: dict) -> None:
@@ -209,12 +229,20 @@ def _compose_message(
         lines.append(summary.strip())
     for t in trades:
         if t["status"] == "rejected":
-            quantity = f"{t['quantity']:.4f}".rstrip("0").rstrip(".")
-            lines.append(f"Rejected: {t['side']} {quantity} {t['ticker']} - {t['reason']}")
+            lines.append(f"Rejected: {t['side']} {_order_text(t)} - {t['reason']}")
     for c in changes:
         if c["status"] == "rejected":
             lines.append(f"Rejected: {c['action']} {c['ticker']} - {c['reason']}")
     return "\n".join(lines)
+
+
+def _order_text(trade: dict) -> str:
+    if trade["amount"] is not None:
+        return f"${trade['amount']:,.2f} of {trade['ticker']}"
+    if trade["quantity"] is None:
+        return trade["ticker"]
+    quantity = f"{trade['quantity']:.6f}".rstrip("0").rstrip(".")
+    return f"{quantity} {trade['ticker']}"
 
 
 def _reply(

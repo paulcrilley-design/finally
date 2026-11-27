@@ -1,4 +1,4 @@
-import type { ChatResponse, Portfolio, Side, Snapshot, StoredChatMessage, Trade, WatchlistItem } from "./types";
+import type { ChatResponse, OrderSize, Portfolio, Side, Snapshot, StoredChatMessage, Trade, WatchlistItem } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -33,8 +33,8 @@ async function request<T>(path: string, method = "GET", body?: unknown): Promise
 export const api = {
   portfolio: () => request<Portfolio>("/api/portfolio"),
   history: () => request<{ history: Snapshot[] }>("/api/portfolio/history"),
-  trade: (ticker: string, quantity: number, side: Side) =>
-    request<{ trade: Trade; portfolio: Portfolio }>("/api/portfolio/trade", "POST", { ticker, quantity, side }),
+  trade: (ticker: string, size: OrderSize, side: Side) =>
+    request<{ trade: Trade; portfolio: Portfolio }>("/api/portfolio/trade", "POST", { ticker, ...size, side }),
   watchlist: () => request<{ tickers: WatchlistItem[] }>("/api/watchlist"),
   addTicker: (ticker: string) => request<WatchlistItem>("/api/watchlist", "POST", { ticker }),
   removeTicker: (ticker: string) => request<void>(`/api/watchlist/${encodeURIComponent(ticker)}`, "DELETE"),

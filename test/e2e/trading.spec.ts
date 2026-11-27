@@ -1,4 +1,4 @@
-import { amount, cents, expect, open, test, trade } from "./helpers";
+import { say, amount, cents, expect, open, test, trade } from "./helpers";
 
 test("buying lowers cash, opens a position and updates the portfolio", async ({ page, request }) => {
   await open(page);
@@ -22,6 +22,7 @@ test("buying lowers cash, opens a position and updates the portfolio", async ({ 
   }).toPass();
 
   // A second buy adds to the same position.
+  const afterFirst = await amount(page, "header-cash");
   const second = await trade(page, "buy", "AAPL", 2);
   await expect(page.getByTestId("position-quantity-AAPL")).toHaveText("7");
   await expect.poll(() => amount(page, "header-cash")).toBe(cents(cash - cents(2 * second)));
@@ -40,12 +41,14 @@ test("selling raises cash, then updates and removes the position", async ({ page
   const afterBuy = await amount(page, "header-cash");
 
   const first = await trade(page, "sell", "MSFT", 1.5);
-  const afterFirst = cents(afterBuy + cents(1.5 * first));
-  await expect.poll(() => amount(page, "header-cash")).toBe(afterFirst);
+  // A half cent (1.5 or 2.5 shares at an odd-cent price) may round either way on the server.
+  const cashAbout = async (expected: number) =>
+    expect.poll(async () => Math.abs((await amount(page, "header-cash")) - expected)).toBeLessThan(0.011);
+  await cashAbout(cents(afterBuy + cents(1.5 * first)));
   await expect(page.getByTestId("position-quantity-MSFT")).toHaveText("2.5");
 
   const second = await trade(page, "sell", "MSFT", 2.5);
-  await expect.poll(() => amount(page, "header-cash")).toBe(cents(afterFirst + cents(2.5 * second)));
+  await cashAbout(cents(afterFirst + cents(2.5 * second)));
   await expect(page.getByTestId("position-row-MSFT")).toHaveCount(0);
   await expect(page.getByTestId("heatmap-cell-MSFT")).toHaveCount(0);
   await expect(page.getByTestId("positions-table")).toContainText("No open positions");
@@ -68,4 +71,24 @@ test("rejected orders show a reason and change nothing", async ({ page }) => {
   await attempt("buy", "AAPL", "0.00001", /quantity/i);
   await expect(page.getByTestId("header-cash")).toHaveText("$10,000.00");
   await expect(page.getByTestId("positions-table")).toContainText("No open positions");
+});
+
+test("buys and sells by US dollar amount", async ({ page }) => {
+  await open(page);
+  await page.getByTestId("trade-ticker").fill("AAPL");
+  await page.getByTestId("trade-unit-usd").click();
+  await page.getByTestId("trade-quantity").fill("500");
+  await page.getByTestId("trade-buy").click();
+  const message = page.getByTestId("trade-message");
+  await expect(message).toHaveText(/^Bought [\d.]+ AAPL for \$500\.00 at \$[\d,]+\.\d{2}\.$/);
+  await expect(page.getByTestId("header-cash")).toHaveText("$9,500.00");
+
+  await page.getByTestId("trade-quantity").fill("200");
+  await page.getByTestId("trade-sell").click();
+  await expect(message).toHaveText(/^Sold [\d.]+ AAPL for \$200\.00 at /);
+  await expect(page.getByTestId("header-cash")).toHaveText("$9,700.00");
+
+  await say(page, "buy $100 of MSFT");
+  await expect(page.getByTestId("chat-action")).toContainText(/Buy [\d.]+ MSFT for \$100\.00 at \$/);
+  await expect(page.getByTestId("header-cash")).toHaveText("$9,600.00");
 });

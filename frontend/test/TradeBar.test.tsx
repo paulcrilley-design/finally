@@ -20,6 +20,21 @@ describe("TradeBar", () => {
     expect(onTraded).toHaveBeenCalled();
   });
 
+  it("sends a dollar amount in US$ mode and clears the box when the unit changes", async () => {
+    const trade = { id: "1", ticker: "AAPL", side: "buy", quantity: 2.631579, price: 190, value: 500, executed_at: "" };
+    const fetch = stubFetch({ trade, portfolio: {} });
+    render(<TradeBar selected="AAPL" onTraded={vi.fn()} />);
+    fill("500");
+    fireEvent.click(screen.getByTestId("trade-unit-usd"));
+    expect((screen.getByTestId("trade-quantity") as HTMLInputElement).value).toBe("");
+    fill("500");
+    fireEvent.click(screen.getByTestId("trade-buy"));
+    expect((await screen.findByTestId("trade-message")).textContent).toBe(
+      "Bought 2.631579 AAPL for $500.00 at $190.00.",
+    );
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ ticker: "AAPL", amount: 500, side: "buy" });
+  });
+
   it("shows a rejected order", async () => {
     stubFetch({ error: { code: "insufficient_shares", message: "Not enough shares." } }, 400);
     render(<TradeBar selected="AAPL" onTraded={vi.fn()} />);

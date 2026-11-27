@@ -67,6 +67,7 @@ def test_approved_actions_execute(chat, llm):
             "ticker": "AAPL",
             "side": "buy",
             "quantity": 5.0,
+            "amount": None,
             "status": "executed",
             "price": 100.0,
             "reason": None,
@@ -199,3 +200,20 @@ def test_history_returns_stored_messages(api, chat, llm):
         ("assistant", "Hi."),
     ]
     assert messages[1]["actions"] == {"trades": [], "watchlist_changes": [], "error": None}
+
+
+def test_dollar_orders_reach_the_reviewer_and_execute(chat, llm):
+    dollars = {"ticker": "AAPL", "side": "buy", "amount": 500}
+    llm.replies = [proposal(trades=[dollars]), reviews(verdict(0))]
+    result = chat("buy $500 of AAPL")["trades"][0]
+    assert (result["status"], result["amount"]) == ("executed", 500.0)
+    assert result["quantity"] > 0
+    sent = llm.calls[-1]["messages"][-1]["content"]
+    assert '"amount_usd":500' in sent and '"quantity":null' not in sent
+
+
+def test_rejected_dollar_order_is_described_in_dollars(chat, llm):
+    llm.replies = [proposal(trades=[{"ticker": "AAPL", "side": "buy", "amount": 50_000}])]
+    body = chat("buy $50000 of AAPL")
+    assert "Rejected: buy $50,000.00 of AAPL" in body["message"]
+    assert body["trades"][0]["quantity"] is None

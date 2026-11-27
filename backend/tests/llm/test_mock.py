@@ -3,6 +3,7 @@
 import pytest
 
 import db
+from app.llm import mock
 
 USER = "default"
 
@@ -44,3 +45,12 @@ def test_reject_trigger(chat):
     assert actions[0]["review"] == {"verdict": "reject", "reason": "Mock reviewer rejection."}
     assert body["error"] is None
     assert db.list_trades(USER) == []
+
+
+def test_dollar_orders():
+    trades = mock.propose("buy $500 of AAPL and sell $20.50 TSLA, buy 2 MSFT").trades
+    assert [(t.ticker, t.amount, t.quantity) for t in trades] == [
+        ("AAPL", 500.0, None),
+        ("TSLA", 20.5, None),
+        ("MSFT", None, 2.0),
+    ]

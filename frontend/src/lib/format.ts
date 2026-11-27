@@ -1,5 +1,5 @@
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
-const quantity = new Intl.NumberFormat("en-US", { maximumFractionDigits: 4 });
+const quantity = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 });
 const MINUS = "−";
 const NONE = "—";
 

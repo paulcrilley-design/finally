@@ -3,6 +3,7 @@
 from .chat import add_chat_message, list_chat_messages
 from .errors import InsufficientCash, InsufficientShares
 from .portfolio import (
+    QUANTITY_DECIMALS,
     add_snapshot,
     apply_trade,
     get_position,
@@ -16,6 +17,7 @@ from .users import get_cash, list_user_ids
 from .watchlist import add_watchlist, all_tracked_tickers, list_watchlist, remove_watchlist
 
 __all__ = [
+    "QUANTITY_DECIMALS",
     "InsufficientCash",
     "InsufficientShares",
     "add_chat_message",

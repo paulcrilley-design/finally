@@ -14,7 +14,8 @@ class ChatRequest(BaseModel):
 class TradeProposal(BaseModel):
     ticker: str
     side: Literal["buy", "sell"]
-    quantity: float = Field(allow_inf_nan=False)
+    quantity: float | None = Field(default=None, allow_inf_nan=False)  # shares
+    amount: float | None = Field(default=None, allow_inf_nan=False)  # US dollars
 
 
 class WatchlistProposal(BaseModel):
