@@ -87,6 +87,33 @@ describe("Page", () => {
     expect(await screen.findByText("Watchlist unavailable")).toBeInTheDocument();
   });
 
+  it("fetches the watchlist again on every open", async () => {
+    const fetchMock = stubFetch();
+    const { source } = await renderLoaded();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await act(async () => source.emitOpen());
+    await act(async () => source.emitOpen());
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps the last prices through errors and a closed source", async () => {
+    const { source } = await renderLoaded();
+    act(() => source.emitMessage(JSON.stringify({ AAPL: { price: 191.5 } })));
+    act(() => source.emitError(FakeEventSource.CONNECTING));
+    act(() => source.emitError(FakeEventSource.CLOSED));
+    expect(priceCell("AAPL")).toHaveTextContent("191.50");
+  });
+
+  it("shows rows when an open follows a failed first fetch", async () => {
+    stubFetch(500);
+    render(<Page />);
+    await screen.findByText("Watchlist unavailable");
+    stubFetch();
+    await act(async () => FakeEventSource.instances[0].emitOpen());
+    expect(await screen.findByRole("table")).toBeInTheDocument();
+    expect(priceCell("AAPL")).toHaveTextContent("100.00");
+  });
+
   it("closes the stream when the page is left", async () => {
     const { source, unmount } = await renderLoaded();
     expect(source.readyState).not.toBe(FakeEventSource.CLOSED);

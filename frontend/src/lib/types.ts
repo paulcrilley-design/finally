@@ -25,3 +25,5 @@ export type PriceMap = Record<string, PriceUpdate>;
 export type WatchlistResponse = { watchlist: WatchlistItem[] };
 
 export type WatchlistRow = { quote: WatchlistItem; tick?: Tick };
+
+export type StreamStatus = "connected" | "reconnecting" | "disconnected";

@@ -1,44 +1,55 @@
 import { useEffect, useState } from "react";
 
+import { openPriceStream } from "./priceStream";
 import { applyPrices, applyWatchlist, EMPTY_MARKET } from "./ticks";
-import type { WatchlistItem, WatchlistResponse, WatchlistRow } from "./types";
+import type { StreamStatus, WatchlistItem, WatchlistResponse, WatchlistRow } from "./types";
 
 export type MarketError = "unavailable" | null;
 
 // Rows follow the stored watchlist for order and membership, with streamed values on top.
-export function useMarket(): { rows: WatchlistRow[] | null; error: MarketError } {
+export function useMarket(): {
+  rows: WatchlistRow[] | null;
+  status: StreamStatus;
+  error: MarketError;
+} {
   const [data, setData] = useState(EMPTY_MARKET);
   const [watchlist, setWatchlist] = useState<WatchlistItem[] | null>(null);
+  const [status, setStatus] = useState<StreamStatus>("reconnecting");
   const [error, setError] = useState<MarketError>(null);
 
   useEffect(() => {
     let mounted = true;
+    let latestRequest = 0;
+
+    // A failure keeps the rows already shown.
     async function loadWatchlist() {
+      const request = ++latestRequest;
+      const current = () => mounted && request === latestRequest;
       try {
         const response = await fetch("/api/watchlist");
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const body: WatchlistResponse = await response.json();
-        if (!mounted) return;
+        if (!current()) return;
         setWatchlist(body.watchlist);
-        setData((current) => applyWatchlist(current, body.watchlist));
+        setData((previous) => applyWatchlist(previous, body.watchlist));
+        setError(null);
       } catch {
-        if (mounted) setError("unavailable");
+        if (current()) setError("unavailable");
       }
     }
     loadWatchlist();
 
-    const source = new EventSource("/api/stream/prices");
-    source.onmessage = (event) => {
-      try {
-        const prices = JSON.parse(event.data);
-        setData((current) => applyPrices(current, prices));
-      } catch {
-        // Ignore malformed data; the next message replaces it.
-      }
-    };
+    // Prices are never cleared on disconnect: the last ones stay on screen.
+    const close = openPriceStream(
+      (prices) => setData((previous) => applyPrices(previous, prices)),
+      (next) => {
+        setStatus(next);
+        if (next === "connected") loadWatchlist();
+      },
+    );
     return () => {
       mounted = false;
-      source.close();
+      close();
     };
   }, []);
 
@@ -47,5 +58,5 @@ export function useMarket(): { rows: WatchlistRow[] | null; error: MarketError }
       quote: data.quotes[item.ticker] ?? item,
       tick: data.ticks[item.ticker],
     })) ?? null;
-  return { rows, error };
+  return { rows, status, error };
 }
